@@ -5,16 +5,16 @@ from kivy.uix.label import Label
 from kivy.uix.textinput import TextInput
 from kivy.uix.button import Button
 
-from lib.utils.FontUtils import getFontSTX
+from lib.utils.FontUtils import getFontSTX, getFontSTXName
 
 
 class CodingApp(App):
     def build(self):
         LabelBase.register(
-            name="Chinese",
+            name=getFontSTXName(),
             fn_regular=getFontSTX()
         )
-        root = BoxLayout(orientation="vertical", padding=10, spacing=10 )
+        root = BoxLayout(orientation="vertical", padding=10, spacing=10)
 
         # 题目区域
         self.question = Label(
