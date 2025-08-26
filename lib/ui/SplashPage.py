@@ -1,12 +1,15 @@
 from kivy.clock import Clock
 from kivy.graphics import Rectangle, Color
+from kivy.uix.anchorlayout import AnchorLayout
 from kivy.uix.image import Image
+from kivy.uix.relativelayout import RelativeLayout
 from kivy.uix.screenmanager import ScreenManager, Screen, SlideTransition
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.button import Button
 from kivy.uix.label import Label
 from kivy.utils import get_color_from_hex
 
+from assets.str.APP_CONFIG import APP_NAME
 from lib.utils.FontUtils import getFontSTXName
 from lib.utils.ImgUtils import getImgPath
 
@@ -14,30 +17,50 @@ from lib.utils.ImgUtils import getImgPath
 class SplashScreen(Screen):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        layout = BoxLayout(orientation="vertical", padding=20, spacing=30)
 
-        # Add app logo
-        logo = Image(source=getImgPath("logo.png"), size_hint=(0.5, 0.5))
-        # Note: For this example, I'm using a placeholder image source
-        # In a real app, you would use your own logo.png file
+        # 设置白色背景
+        with self.canvas.before:
+            Color(1, 1, 1, 1)  # RGB白色，alpha=1
+            self.rect = Rectangle(size=self.size, pos=self.pos)
+        self.bind(size=self._update_rect, pos=self._update_rect)
 
-        # If you don't have a logo.png, you can replace with a label:
-        # logo = Label(text="[Your App Logo]", font_size=50, markup=True)
-        layout.add_widget(logo)
+        # AnchorLayout 用于居中显示内容
+        anchor = AnchorLayout(anchor_x='center', anchor_y='center')
 
-        # Add loading text
-        loading_text = Label(
-            text="Loading...",
-            font_name=getFontSTXName(),
-            font_size=20,
-            color=get_color_from_hex("#3498db")
+        # BoxLayout 用于垂直排列 logo 和文字
+        layout = BoxLayout(orientation='vertical', spacing=20, size_hint=(None, None))
+        layout.width = 512
+        layout.height = 512 + 50  # logo高度+文字高度大概50
+
+        # Logo 图片
+        logo = Image(
+            source=getImgPath("logo.png"),
+            size_hint=(None, None),
+            size=(512, 512),
+            allow_stretch=True
         )
-        layout.add_widget(loading_text)
 
-        self.add_widget(layout)
+        # 文本
+        label = Label(
+            text=APP_NAME,
+            font_name=getFontSTXName(),
+            font_size=36,
+            color=get_color_from_hex("#2c3e50"),
+            size_hint=(1, None),
+            height=50
+        )
+
+        layout.add_widget(logo)
+        layout.add_widget(label)
+        anchor.add_widget(layout)
+        self.add_widget(anchor)
+
+    def _update_rect(self, instance, value):
+        self.rect.pos = instance.pos
+        self.rect.size = instance.size
 
     def on_enter(self):
-        # Schedule transition to main page after 1 second
+        # 1秒后跳转到主页面
         Clock.schedule_once(self.go_to_main, 10)
 
     def go_to_main(self, dt):
