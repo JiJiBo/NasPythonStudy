@@ -5,19 +5,15 @@ from kivy.uix.button import Button
 from kivy.uix.label import Label
 
 from lib.utils.FontUtils import getFontSTXName
+from lib.view.ChatBubble import ChatBubble, ChatScreen
 
 
 class TestScreen(Screen):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        layout = BoxLayout(orientation="vertical")
-        layout.add_widget(Label(text="首页：题目列表",font_name = getFontSTXName()))
+        chat_bubble = ChatScreen( )
 
-        btn = Button(text="去解题页面",font_name = getFontSTXName())
-        btn.bind(on_press=self.go_to_coding)
-        layout.add_widget(btn)
-
-        self.add_widget(layout)
+        self.add_widget(chat_bubble)
 
     def go_to_coding(self, instance):
         self.manager.transition = SlideTransition(direction="left")

@@ -5,7 +5,7 @@ from kivy.uix.screenmanager import ScreenManager
 from lib.ui.MainPage import MainScreen
 from lib.ui.SplashPage import SplashScreen
 from lib.utils.FontUtils import getFontSTX, getFontSTXName
-from test.TestPage import TestScreen
+from lib.ui.TestPage import TestScreen
 
 
 class MyApp(App):
