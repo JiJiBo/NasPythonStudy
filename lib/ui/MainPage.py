@@ -55,7 +55,6 @@ class MainScreen(Screen):
             color=(1, 1, 1, 1),
             size_hint=(1, 0.15)
         )
-        nav_btn.bind(on_press=self.go_to_coding)
         layout.add_widget(nav_btn)
 
         self.add_widget(layout)
@@ -63,7 +62,3 @@ class MainScreen(Screen):
     def show_problem_detail(self, problem):
         print(f"Selected problem: {problem}")
         # In a real app, you would navigate to a problem detail screen
-
-    def go_to_coding(self, instance):
-        self.manager.transition = SlideTransition(direction="left")
-        self.manager.current = "coding"

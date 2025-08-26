@@ -61,8 +61,8 @@ class SplashScreen(Screen):
 
     def on_enter(self):
         # 1秒后跳转到主页面
-        Clock.schedule_once(self.go_to_main, 10)
+        Clock.schedule_once(self.go_to_main, 2)
 
     def go_to_main(self, dt):
         self.manager.transition = SlideTransition(direction="left")
-        self.manager.current = "main"
+        self.manager.current = "test"
