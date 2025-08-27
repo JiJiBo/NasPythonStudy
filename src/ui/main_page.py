@@ -4,6 +4,7 @@ from src.str.APP_CONFIG import APP_NAME
 from src.ui.home.home_content import HomeContent
 from src.ui.home.mine_content import MineContent
 from src.ui.home.setting_content import SettingContent
+from src.ui.view.chat_view import ChatContent
 
 
 def main_page(page: ft.Page):
@@ -41,14 +42,20 @@ def main_page(page: ft.Page):
                 label="设置",
                 selected_icon=ft.Icons.SETTINGS_OUTLINED
             ),
+            ft.NavigationBarDestination(
+                icon=ft.Icons.CHAT,
+                label="Chat",
+                selected_icon=ft.Icons.CHAT_OUTLINED
+            ),
         ]
     )
 
     home_content = HomeContent()
     my_content = MineContent()
     settings_content = SettingContent()
+    chat_content = ChatContent()
     # 所有页面列表
-    pages = [home_content, my_content, settings_content]
+    pages = [home_content, my_content, settings_content,chat_content]
 
     # 内容区域
     content_area = ft.Container(
