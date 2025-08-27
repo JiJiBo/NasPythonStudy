@@ -1,6 +1,7 @@
 import flet as ft
 from src.utils.ChatUtils import AIRequestHandler
 
+
 class ChatContent(ft.Column):
     def __init__(self, **kwargs):
         self.ai_handler = AIRequestHandler()
@@ -32,7 +33,7 @@ class ChatContent(ft.Column):
             ft.Container(
                 content=ft.Markdown(text, selectable=True),
                 padding=10,
-                bgcolor=color.with_opacity(0.1,color),
+                bgcolor=color.with_opacity(0.1, color),
                 border_radius=8
             )
         )
@@ -40,6 +41,9 @@ class ChatContent(ft.Column):
 
     def send_message(self, e):
         user_text = self.input_box.value.strip()
+        self.send_custom_message(user_text)
+
+    def send_custom_message(self, user_text):
         if not user_text:
             return
         self.add_message(user_text, is_user=True)
@@ -50,7 +54,7 @@ class ChatContent(ft.Column):
         self._ai_container = ft.Container(
             content=ft.Markdown("", selectable=True),
             padding=10,
-            bgcolor=ft.Colors.GREEN.with_opacity(0.1,ft.Colors.GREEN),
+            bgcolor=ft.Colors.GREEN.with_opacity(0.1, ft.Colors.GREEN),
             border_radius=8
         )
         self.chat_area.controls.append(self._ai_container)
