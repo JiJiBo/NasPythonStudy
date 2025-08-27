@@ -1,7 +1,11 @@
+import threading
+import time
+
 import flet as ft
 from flet.core.types import FontWeight
 
 from src.str.APP_CONFIG import APP_NAME
+from src.ui.main_page import main_page
 
 
 def splash_page(page: ft.Page):
@@ -23,3 +27,9 @@ def splash_page(page: ft.Page):
             alignment=ft.alignment.center,
         )
     )
+    def go_to_main():
+        time.sleep(1)  # Wait for 1 second
+        page.clean()
+        main_page(page)
+        page.update()
+    threading.Thread(target=go_to_main, daemon=True).start()
