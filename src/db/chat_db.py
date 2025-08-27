@@ -1,14 +1,18 @@
 import json
+import os
+
 import requests
 import uuid
 from openai import OpenAI
 import sqlite3
 from datetime import datetime
 from src.db.llm_config_db import LLMConfigDB
+from src.db.path_utils import get_app_path
 
 
 class ChatDB:
     def __init__(self, db_path="chat.db"):
+        db_path = os.path.join(get_app_path(), db_path)
         self.conn = sqlite3.connect(db_path, check_same_thread=False)
         self._init_db()
 

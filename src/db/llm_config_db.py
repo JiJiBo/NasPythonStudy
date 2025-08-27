@@ -1,9 +1,12 @@
 import sqlite3
 import os
 
+from src.db.path_utils import get_app_path
+
+
 class LLMConfigDB:
     def __init__(self, db_path="llm_config.db"):
-        self.db_path = db_path
+        self.db_path = os.path.join(get_app_path(), db_path)
         self._init_db()
 
     def _init_db(self):
