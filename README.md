@@ -46,7 +46,8 @@ For more details on running the app, refer to the [Getting Started Guide](https:
 flet build apk -v
 ```
 
-For more details on building and signing `.apk` or `.aab`, refer to the [Android Packaging Guide](https://flet.dev/docs/publish/android/).
+For more details on building and signing `.apk` or `.aab`, refer to
+the [Android Packaging Guide](https://flet.dev/docs/publish/android/).
 
 ### iOS
 
@@ -74,8 +75,9 @@ For more details on building Linux package, refer to the [Linux Packaging Guide]
 
 ### Windows
 
-```
-flet build windows -v
+```shell
+flet build windows  
 ```
 
-For more details on building Windows package, refer to the [Windows Packaging Guide](https://flet.dev/docs/publish/windows/).
+For more details on building Windows package, refer to
+the [Windows Packaging Guide](https://flet.dev/docs/publish/windows/).
