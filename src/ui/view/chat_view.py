@@ -9,7 +9,7 @@ class ChatContent(ft.Column):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.ai_handler = AIRequestHandler()
-
+        self.scroll_count = 0
         # 聊天显示区
         self.chat_area = ft.ListView(
             expand=True,
@@ -33,7 +33,7 @@ class ChatContent(ft.Column):
         # 快速到底部按钮，初始隐藏
         self.scroll_bottom_button = ft.FloatingActionButton(
             icon=ft.Icons.ARROW_DOWNWARD,
-            on_click=self.scroll_to_bottom,
+            on_click=self._scroll_to_bottom,
             bgcolor=ft.Colors.GREEN,
             visible=True,
             mini=True,
@@ -65,9 +65,18 @@ class ChatContent(ft.Column):
 
         self.scroll_bottom_button.update()
 
+
     def scroll_to_bottom(self, e=None):
+
+        if self.scroll_count % 20 != 0:
+            self.scroll_count += 1
+            return
+        self.scroll_count += 1
+        self._scroll_to_bottom()
+
+    def _scroll_to_bottom(self, e=None):
         # 滚动到底部
-        self.chat_area.scroll_to(offset=0, duration=1, curve=AnimationCurve.LINEAR)
+        self.chat_area.scroll_to(offset=0)
         self.auto_scroll = True
         self.scroll_bottom_button.visible = False
         self.scroll_bottom_button.update()
@@ -113,6 +122,7 @@ class ChatContent(ft.Column):
 
         # 流式更新 AI 回复
         def callback(chunk):
+            print(chunk)
             self._ai_container.content.parse_and_add_content(chunk)
             self.update()
             if self.auto_scroll:

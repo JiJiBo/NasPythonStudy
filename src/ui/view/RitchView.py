@@ -1,6 +1,8 @@
 import flet as ft
+import re
 
-from flet.core.markdown import MarkdownCodeTheme, MarkdownExtensionSet
+from flet.core.container import Container
+from flet.core.markdown import MarkdownCodeTheme, MarkdownExtensionSet, Markdown
 
 
 class RichContent(ft.Column):
@@ -9,30 +11,94 @@ class RichContent(ft.Column):
         self.spacing = 10
         self.controls = []
         self.expand = True
-
-        # 如果构造器传入内容，直接解析并添加
+        self.text_str = ""
         if content:
             self.parse_and_add_content(content)
 
     def append(self, md_text: str):
-        md_value=""
-        if len(self.controls) != 0:
-            for control in self.controls:
-                md_value += control.value
         self.controls.clear()
-        self.controls.append(
-            ft.Markdown(
-                md_value+md_text,
-                selectable=True,
-                code_theme=MarkdownCodeTheme.GOOGLE_CODE,
-                extension_set=MarkdownExtensionSet.GITHUB_WEB,
-            )
-        )
+        # 解析 think 标签
+        # 按 <think> 切分
+        import re
+
+        # 使用非贪婪匹配，并处理可能不完整的情况
+        parts = re.split(r"(<think>.*?</think>|<think>.*?$|^.*?</think>)", md_text, flags=re.DOTALL)
+
+        for part in parts:
+            if not part.strip():
+                continue
+
+            # 处理完整的 think 标签
+            if part.startswith("<think>") and part.endswith("</think>"):
+                think_text = part[len("<think>"):-len("</think>")].strip()
+                if len(think_text) > 0:
+                    self.controls.append(
+                        ft.Container(
+                            content=ft.Text(
+                                "思考：" + think_text,
+                                size=14,
+                                color=ft.Colors.GREY_700,
+                                selectable=True,
+                            ),
+                            bgcolor=ft.Colors.WHITE,
+                            border_radius=8,
+                            padding=10,
+                        )
+                    )
+
+            # 处理只有开始标签没有结束标签的情况
+            elif part.startswith("<think>"):
+                think_text = part[len("<think>"):].strip()
+                if len(think_text) > 0:
+                    self.controls.append(
+                        ft.Container(
+                            content=ft.Text(
+                                "思考：" + think_text,
+                                size=14,
+                                color=ft.Colors.GREY_700,
+                                selectable=True,
+                            ),
+                            bgcolor=ft.Colors.WHITE,
+                            border_radius=8,
+                            padding=10,
+                        )
+                    )
+
+            # 处理只有结束标签没有开始标签的情况
+            elif part.endswith("</think>"):
+                think_text = part[:-len("</think>")].strip()
+                if len(think_text) > 0:
+                    self.controls.append(
+                        ft.Container(
+                            content=ft.Text(
+                                "思考：" + think_text,
+                                size=14,
+                                color=ft.Colors.GREY_700,
+                                selectable=True,
+                            ),
+                            bgcolor=ft.Colors.WHITE,
+                            border_radius=8,
+                            padding=10,
+                        )
+                    )
+
+            # 处理普通文本
+            else:
+                self.controls.append(
+                    ft.Markdown(
+                        part,
+                        selectable=True,
+                        code_theme=MarkdownCodeTheme.GOOGLE_CODE,
+                        extension_set=MarkdownExtensionSet.GITHUB_WEB,
+                    )
+                )
+
         if hasattr(self, 'page') and self.page:
             self.update()
 
     def parse_and_add_content(self, text: str):
-        self.append(text)
+        self.text_str += text
+        self.append(self.text_str)
 
 
 def main(page: ft.Page):
