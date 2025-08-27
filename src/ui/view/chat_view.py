@@ -2,13 +2,13 @@ import flet as ft
 from flet.core.animation import AnimationCurve
 
 from src.ui.view.RitchView import RichContent
-from src.utils.ChatUtils import AIRequestHandler
+from src.utils.ChatUtils import AIRequestHandler, ai_handler
 
 
 class ChatContent(ft.Column):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.ai_handler = AIRequestHandler()
+
         self.scroll_count = 0
         # 聊天显示区
         self.chat_area = ft.ListView(
@@ -64,7 +64,6 @@ class ChatContent(ft.Column):
             self.scroll_bottom_button.visible = False
 
         self.scroll_bottom_button.update()
-
 
     def scroll_to_bottom(self, e=None):
 
@@ -132,4 +131,4 @@ class ChatContent(ft.Column):
         def error_callback(err):
             self.add_message(f"错误: {err}", is_user=False)
 
-        self.ai_handler.stream_response(user_text, callback, error_callback)
+        ai_handler.stream_response(user_text, callback, error_callback)
