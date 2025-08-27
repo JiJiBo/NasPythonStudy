@@ -1,6 +1,9 @@
 import flet as ft
 
 from src.str.APP_CONFIG import APP_NAME
+from src.ui.home.home_content import HomeContent
+from src.ui.home.mine_content import MineContent
+from src.ui.home.setting_content import SettingContent
 
 
 def main_page(page: ft.Page):
@@ -41,79 +44,9 @@ def main_page(page: ft.Page):
         ]
     )
 
-    # 主页内容
-    home_content = ft.Column(
-        controls=[
-            ft.Icon(ft.Icons.HOME, size=50, color=ft.Colors.GREEN_700),
-            ft.Text("欢迎使用我的应用", size=24, weight=ft.FontWeight.BOLD),
-            ft.Text("这是主页内容区域", size=16, color=ft.Colors.GREY_600),
-            ft.ElevatedButton(
-                "了解更多",
-                icon=ft.Icons.INFO,
-                on_click=lambda e: print("主页按钮点击")
-            )
-        ],
-        alignment=ft.MainAxisAlignment.CENTER,
-        horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-        spacing=20
-    )
-
-    # 我的页面内容
-    my_content = ft.Column(
-        controls=[
-            ft.Icon(ft.Icons.PERSON, size=50, color=ft.Colors.BLUE_700),
-            ft.Text("个人中心", size=24, weight=ft.FontWeight.BOLD),
-            ft.Text("这里可以查看和管理您的个人信息", size=16, color=ft.Colors.GREY_600),
-            ft.Row(
-                [
-                    ft.CircleAvatar(
-                        foreground_image_src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1480&q=80",
-                        content=ft.Text("用户"),
-                        max_radius=40,
-                    ),
-                    ft.Column(
-                        [
-                            ft.Text("张三", weight=ft.FontWeight.BOLD),
-                            ft.Text("zhangsan@example.com"),
-                        ],
-                        alignment=ft.MainAxisAlignment.CENTER,
-                        spacing=5,
-                    )
-                ],
-                alignment=ft.MainAxisAlignment.CENTER,
-                spacing=10
-            )
-        ],
-        alignment=ft.MainAxisAlignment.CENTER,
-        horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-        spacing=20
-    )
-
-    # 设置页面内容
-    settings_content = ft.Column(
-        controls=[
-            ft.Icon(ft.Icons.SETTINGS, size=50, color=ft.Colors.ORANGE_700),
-            ft.Text("设置", size=24, weight=ft.FontWeight.BOLD),
-            ft.Text("在这里配置您的应用偏好", size=16, color=ft.Colors.GREY_600),
-            ft.Container(
-                content=ft.Column(
-                    [
-                        ft.Switch(label="夜间模式", value=False),
-                        ft.Switch(label="消息通知", value=True),
-                        ft.Switch(label="自动更新", value=True),
-                    ],
-                    spacing=10,
-                ),
-                padding=20,
-                border=ft.border.all(1, ft.Colors.GREY_300),
-                border_radius=10,
-            )
-        ],
-        alignment=ft.MainAxisAlignment.CENTER,
-        horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-        spacing=20
-    )
-
+    home_content = HomeContent()
+    my_content = MineContent()
+    settings_content = SettingContent()
     # 所有页面列表
     pages = [home_content, my_content, settings_content]
 
@@ -128,4 +61,3 @@ def main_page(page: ft.Page):
     page.add(content_area)
 
     page.update()
-
