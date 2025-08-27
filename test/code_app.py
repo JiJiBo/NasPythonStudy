@@ -1,82 +1,57 @@
-from kivy.app import App
-from kivy.core.text import LabelBase
-from kivy.uix.boxlayout import BoxLayout
-from kivy.uix.label import Label
-from kivy.uix.textinput import TextInput
-from kivy.uix.button import Button
-
-from lib.utils.FontUtils import getFontSTX, getFontSTXName
+import flet as ft
+import re
 
 
-class CodingApp(App):
-    def build(self):
-        LabelBase.register(
-            name=getFontSTXName(),
-            fn_regular=getFontSTX()
+class RichContent(ft.Column):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.spacing = 10
+        self.controls = []
+        self.expand = True
+
+    def add_markdown(self, md_text: str):
+        self.controls.append(
+            ft.Markdown(
+                md_text,
+                selectable=True,
+                code_theme="monokai-sublime",
+                extension_set="gitHubWeb",
+                expand=True
+            )
         )
-        root = BoxLayout(orientation="vertical", padding=10, spacing=10)
+        if self.page:
+            self.update()
 
-        # 题目区域
-        self.question = Label(
-            text="题目：写一个函数，返回两个数的和。",
-            size_hint=(1, 0.1), font_name="Chinese"
-        )
-        root.add_widget(self.question)
+    def add_latex(self, latex: str):
+        md_content = f"$$\n{latex}\n$$"
+        self.add_markdown(md_content)
 
-        # AI 提示区域
-        self.ai_hint = Label(
-            text="提示：你可以用 return a + b 来返回结果。",
-            size_hint=(1, 0.1),
-            color=(0, 0.5, 1, 1), font_name="Chinese"
-        )
-        root.add_widget(self.ai_hint)
+    def add_code(self, code: str, language="python"):
+        md_code = f"```{language}\n{code}\n```"
+        self.add_markdown(md_code)
 
-        # 解题区域
-        self.code_input = TextInput(
-            hint_text="在这里输入你的代码...",
-            multiline=True,
-            size_hint=(1, 0.4), font_name="Chinese"
-        )
-        root.add_widget(self.code_input)
+    def parse_and_add_content(self, text: str):
+        # 分割文本块
+        blocks = re.split(r'\n\s*\n', text)
 
-        # 按钮
-        run_button = Button(
-            text="运行代码",
-            size_hint=(1, 0.1), font_name="Chinese"
-        )
-        run_button.bind(on_press=self.run_code)
-        root.add_widget(run_button)
+        for block in blocks:
+            block = block.strip()
+            if not block:
+                continue
 
-        # 结果区域
-        self.result = Label(
-            text="结果会显示在这里。",
-            size_hint=(1, 0.2),
-            color=(0.2, 0.7, 0.2, 1), font_name="Chinese"
-        )
-        root.add_widget(self.result)
+            # 检测LaTeX公式 (包含$$的块)
+            if re.match(r'^\$\$[\s\S]*\$\$$', block):
+                latex = re.sub(r'^\$\$(.*)\$\$$', r'\1', block, flags=re.DOTALL)
+                self.add_latex(latex)
 
-        return root
+            # 检测代码块 (包含```的块)
+            elif re.match(r'^```.*\n[\s\S]*\n```$', block):
+                match = re.match(r'^```(\w*)\n([\s\S]*)\n```$', block)
+                language = match.group(1) if match.group(1) else "text"
+                code = match.group(2)
+                self.add_code(code, language)
 
-    def run_code(self, instance):
-        code = self.code_input.text
-
-        try:
-            # 运行用户代码
-            local_vars = {}
-            exec(code, {}, local_vars)
-
-            if "add" in local_vars:  # 假设用户写了 add(a, b)
-                test_result = local_vars["add"](2, 3)
-                if test_result == 5:
-                    self.result.text = "✅ 答对了！AI 点评：很好，你掌握了函数的写法！评分：90"
-                else:
-                    self.result.text = "❌ 答案不对，函数返回错误。评分：50"
+            # 否则作为Markdown处理
             else:
-                self.result.text = "⚠️ 你需要定义一个函数 add(a, b)"
+                self.add_markdown(block)
 
-        except Exception as e:
-            self.result.text = f"运行错误：{e}"
-
-
-if __name__ == "__main__":
-    CodingApp().run()

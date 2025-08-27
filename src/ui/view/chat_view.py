@@ -1,4 +1,6 @@
 import flet as ft
+
+from src.ui.view.RitchView import RichContent
 from src.utils.ChatUtils import AIRequestHandler
 
 
@@ -31,7 +33,7 @@ class ChatContent(ft.Column):
         # 使用 Markdown 控件显示 Markdown 格式的文本，并支持文本选择和复制
         self.chat_area.controls.append(
             ft.Container(
-                content=ft.Markdown(text, selectable=True),
+                content= RichContent(text ),
                 padding=10,
                 bgcolor=color.with_opacity(0.1, color),
                 border_radius=8
@@ -52,7 +54,7 @@ class ChatContent(ft.Column):
 
         # 新建 AI 消息容器
         self._ai_container = ft.Container(
-            content=ft.Markdown("", selectable=True),
+            content=RichContent("" ),
             padding=10,
             bgcolor=ft.Colors.GREEN.with_opacity(0.1, ft.Colors.GREEN),
             border_radius=8
@@ -62,7 +64,7 @@ class ChatContent(ft.Column):
 
         # 流式更新 AI 回复
         def callback(chunk):
-            self._ai_container.content.value += chunk
+            self._ai_container.content.parse_and_add_content(chunk)
             self.update()
 
         def error_callback(err):
