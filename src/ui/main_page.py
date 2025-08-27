@@ -4,10 +4,11 @@ from src.str.APP_CONFIG import APP_NAME
 from src.ui.home.home_content import HomeContent
 from src.ui.home.mine_content import MineContent
 from src.ui.home.setting_content import SettingContent
-from src.ui.view.chat_view import ChatContent
+from src.ui.llm.llm_settings import llm_setting_page
+from src.ui.view.chat_view import ChatPullToRefresh
 
 
-def main_page(page: ft.Page):
+def main_page(page: ft.Page, selected_index: int = 0):
     page.clean()
     page.title = APP_NAME
     page.theme_mode = ft.ThemeMode.LIGHT
@@ -16,7 +17,7 @@ def main_page(page: ft.Page):
 
     # 页面切换函数
     def change_page(e):
-        index = page.navigation_bar.selected_index
+        index = page.navigation_bar.selected_index 
         content_area.content = pages[index]
         page.update()
 
@@ -53,19 +54,27 @@ def main_page(page: ft.Page):
 
     home_content = HomeContent()
     my_content = MineContent()
-    settings_content = SettingContent(page,on_back=lambda a:main_page(page))
-    chat_content = ChatContent()
+    settings_content = SettingContent(
+        page,
+        on_back=lambda a, selected_index=0: main_page(page, selected_index=selected_index)
+    )
+    chat_content = ChatPullToRefresh(chat_id="comment")
     # 所有页面列表
     pages = [home_content, my_content, settings_content,chat_content]
 
+    # 设置默认选中的底部标签
+    try:
+        page.navigation_bar.selected_index = selected_index
+    except Exception:
+        page.navigation_bar.selected_index = 0
+
     # 内容区域
     content_area = ft.Container(
-        content=pages[0],  # 默认显示主页
+        content=pages[page.navigation_bar.selected_index],
         alignment=ft.alignment.center,
         expand=True
     )
 
     # 添加内容到页面
     page.add(content_area)
-
     page.update()

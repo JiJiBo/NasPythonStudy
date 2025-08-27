@@ -1,85 +1,63 @@
+import threading
+from typing import Optional
+
 import flet as ft
-from flet.core.animation import AnimationCurve
+import keyboard
 
+from src.ui.view.PullToRefresh import PullToRefreshList
 from src.ui.view.RitchView import RichContent
-from src.utils.ChatUtils import AIRequestHandler, ai_handler
+from src.utils.ChatUtils import ai_handler
 
 
-class ChatContent(ft.Column):
-    def __init__(self, **kwargs):
+class ChatPullToRefresh(PullToRefreshList):
+    def __init__(self, chat_id=None, **kwargs):
         super().__init__(**kwargs)
+        self.chat_id = chat_id
+        self.history_offset_id = None
+        self.history_limit = 10
 
-        self.scroll_count = 0
-        # 聊天显示区
-        self.chat_area = ft.ListView(
-            expand=True,
-            spacing=5,
-            padding=10,
-            auto_scroll=True,
-        )
-
+        # 底部输入
         self.input_box = ft.TextField(
             hint_text="请输入内容...",
             expand=True,
             multiline=True,
             min_lines=1,
             max_lines=5,
-            on_submit=self.send_message
+            on_submit=self.send_message,
         )
+        # 方法定义
+        # 绑定焦点事件
+        self.input_box.on_focus = self._on_focus
+        self.input_box.on_blur = self._on_blur
+        self.input_box.on_key_down = self.key_down_handler  # 绑定键盘事件
+
         self.send_button = ft.IconButton(ft.Icons.SEND, on_click=self.send_message)
+        self.input_row = ft.Row([self.input_box, self.send_button], alignment=ft.MainAxisAlignment.CENTER)
+        self.controls.append(self.input_row)
 
-        input_row = ft.Row([self.input_box, self.send_button], alignment=ft.MainAxisAlignment.CENTER)
+    def key_down_handler(self, e: ft.KeyboardEvent):
+        # 检查是否按下回车且没有按 Shift
+        if e.key == "Enter" and not e.shift:
+            self.send_message(None)  # 注意 send_message 有一个参数 e
+            e.prevent_default = True  # 阻止默认换行
 
-        # 快速到底部按钮，初始隐藏
-        self.scroll_bottom_button = ft.FloatingActionButton(
-            icon=ft.Icons.ARROW_DOWNWARD,
-            on_click=self._scroll_to_bottom,
-            bgcolor=ft.Colors.GREEN,
-            visible=True,
-            mini=True,
-        )
-
-        # 组合页面
-        super().__init__(
-            controls=[self.chat_area, self.scroll_bottom_button, input_row],
-            alignment=ft.MainAxisAlignment.START,
-            expand=True
-        )
-        self.expand = True
-
-        # 自动滚动标志
-        self.auto_scroll = True
-        self.chat_area.on_scroll = self.on_list_scroll
-
-    def on_list_scroll(self, e):
-        # 计算距离底部的距离
-        distance_from_bottom = e.max_scroll_extent - e.pixels
-        if distance_from_bottom > 200:
-            # 距离底部较远，显示按钮，禁止自动滚动
-            self.auto_scroll = False
-            self.scroll_bottom_button.visible = True
-        else:
-            # 接近底部，自动滚动
-            self.auto_scroll = True
-            self.scroll_bottom_button.visible = False
-
-        self.scroll_bottom_button.update()
-
-    def scroll_to_bottom(self, e=None):
-
-        if self.scroll_count % 20 != 0:
-            self.scroll_count += 1
+    # ------------------ 下拉刷新 ------------------
+    def refresh_data(self):
+        if not self.chat_id:
             return
-        self.scroll_count += 1
-        self._scroll_to_bottom()
+        # 这里替换为你的消息获取逻辑，例如 ai_handler.get_recent_history
+        messages = []  # 示例
+        if messages:
+            self.list_view.controls.clear()
+            for msg in messages:
+                self.add_message(msg["text"], is_user=msg.get("is_user", False))
+            self.history_offset_id = messages[0].get("id")
+            self.scroll_to_bottom()
+        self.refresh_indicator.visible = False
+        self.refreshing = False
+        self.update()
 
-    def _scroll_to_bottom(self, e=None):
-        # 滚动到底部
-        self.chat_area.scroll_to(offset=0)
-        self.auto_scroll = True
-        self.scroll_bottom_button.visible = False
-        self.scroll_bottom_button.update()
-
+    # ------------------ 消息操作 ------------------
     def add_message(self, text, is_user=False):
         color = ft.Colors.BLUE if is_user else ft.Colors.GREEN
         container = ft.Container(
@@ -89,26 +67,20 @@ class ChatContent(ft.Column):
             border_radius=8,
             margin=ft.margin.only(bottom=5)
         )
-        self.chat_area.controls.append(container)
+        self.list_view.controls.append(container)
         self.update()
-
-        # 如果处于自动滚动状态，滚动到底部
         if self.auto_scroll:
             self.scroll_to_bottom()
 
     def send_message(self, e):
         user_text = self.input_box.value.strip()
-        self.send_custom_message(user_text)
-
-    def send_custom_message(self, user_text):
         if not user_text:
             return
         self.add_message(user_text, is_user=True)
         self.input_box.value = ""
         self.input_box.focus()
         self.update()
-
-        # AI 回复容器
+        # AI 回复
         self._ai_container = ft.Container(
             content=RichContent(""),
             padding=10,
@@ -116,19 +88,59 @@ class ChatContent(ft.Column):
             border_radius=8,
             margin=ft.margin.only(bottom=5)
         )
-        self.chat_area.controls.append(self._ai_container)
+        self.list_view.controls.append(self._ai_container)
         self.update()
 
-        # 流式更新 AI 回复
         def callback(chunk):
             self._ai_container.content.parse_and_add_content(chunk)
             self.update()
             if self.auto_scroll:
                 self.scroll_to_bottom()
 
-            self.update()
-
         def error_callback(err):
             self.add_message(f"错误: {err}", is_user=False)
 
-        ai_handler.stream_response(user_text, callback, error_callback)
+        ai_handler.send_message(self.chat_id, user_text, callback, error_callback)
+
+    # ------------------ 历史消息 ------------------
+    def load_recent_history_after_mount(self):
+        if not self.chat_id:
+            return
+        messages = ai_handler.get_recent_history(self.chat_id, last_id=None, limit=self.history_limit)
+        for msg in messages:
+            self.add_message(msg[2], is_user=(msg[1] == "user"))
+        if messages:
+            self.history_offset_id = messages[0][0]
+
+    def did_mount(self):
+        # 初始化加载最新消息
+        self.load_recent_history_after_mount()
+        self.input_focused = False
+        self.scroll_to_bottom()
+        self.start_keyboard_listener()
+    def _on_focus(self, e):
+        self.input_focused = True
+
+    def _on_blur(self, e):
+        self.input_focused = False
+    def start_keyboard_listener(self):
+        def listen():
+            while not self.stop_listener:
+                if self.input_focused:
+                    if keyboard.is_pressed("enter") and not keyboard.is_pressed("shift"):
+                        # 使用 page.call_later 安全调用 UI 更新
+                        self.send_message("")
+                        keyboard.wait("enter")  # 防止重复触发
+
+        self.stop_listener = False
+        self.listener_thread = threading.Thread(target=listen, daemon=True)
+        self.listener_thread.start()
+
+    def stop_keyboard_listener(self):
+        self.stop_listener = True
+        if self.listener_thread:
+            self.listener_thread.join(timeout=0.1)
+
+    def will_unmount(self):
+        # 卸载时停止监听
+        self.stop_keyboard_listener()

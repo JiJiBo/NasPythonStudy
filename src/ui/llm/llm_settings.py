@@ -5,7 +5,23 @@ from src.utils.ChatUtils import AIRequestHandler, ai_handler
 
 def llm_setting_page(page: ft.Page, on_back=None):
     db = LLMConfigDB()
+    # 进入本页面时，暂存并移除底部导航栏
+    previous_navigation_bar = getattr(page, "navigation_bar", None)
+    if previous_navigation_bar is not None:
+        page.navigation_bar = None
+        page.update()
+
+    # 暂存进入前的 AppBar，并在本页设置 AppBar
+    previous_appbar = getattr(page, "appbar", None)
+    page.appbar = ft.AppBar(
+        leading=ft.IconButton(ft.Icons.ARROW_BACK, on_click=lambda e: back_click(e)),
+        title=ft.Text("LLM 模型设置", size=20, weight=ft.FontWeight.BOLD),
+        center_title=False,
+        bgcolor=ft.Colors.GREEN_50,
+    )
+
     page.clean()
+
 
     selected_config_id = {"id": None}  # 当前载入的配置id
 
@@ -34,19 +50,23 @@ def llm_setting_page(page: ft.Page, on_back=None):
 
     # 返回按钮
     def back_click(e):
+        # 返回时恢复底部导航栏
+        if previous_navigation_bar is not None:
+            page.navigation_bar = previous_navigation_bar
+        # 恢复进入前的 AppBar（可能为 None）
+        page.appbar = previous_appbar
         if on_back:
-            on_back(page)
+            # 假定 on_back 支持可选参数 selected_index，用于回到主页并选中“设置”标签
+            try:
+                on_back(page, selected_index=2)
+            except TypeError:
+                on_back(page)
         else:
             page.snack_bar = ft.SnackBar(ft.Text("返回主页"))
             page.snack_bar.open = True
             page.update()
 
-    page.appbar = ft.AppBar(
-        leading=ft.IconButton(ft.Icons.ARROW_BACK, on_click=back_click),
-        title=ft.Text("LLM 模型设置", size=20, weight=ft.FontWeight.BOLD),
-        center_title=False,
-        bgcolor=ft.Colors.GREEN_50,
-    )
+    # 使用 AppBar，不在内容区域放返回按钮
 
     # 先获取最新配置
     latest_config = db.get_current_config() or db.get_latest_config_by_model("deepseek")

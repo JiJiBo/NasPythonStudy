@@ -1,10 +1,78 @@
 import json
+import uuid
 
 import requests
 from openai import OpenAI
 
+from src.db.chat_db import ChatDB
 from src.db.llm_config_db import LLMConfigDB
 
+
+class AIRequestHandlerWithHistory:
+    def __init__(self):
+        self.handler = AIRequestHandler.from_current_config()
+        self.db = ChatDB()
+
+    # ---------------- 单次请求 ----------------
+    def get_single_response(self, chat_id,prompt):
+        if not self.handler.valid:
+            return None, "当前没有配置 LLM，请先到设置页面添加或选择配置。"
+
+        self.db.save_message(chat_id, "user", prompt)
+        resp = self.handler.get_single_response(prompt)
+        self.db.save_message(chat_id, "assistant", resp)
+        return chat_id, resp
+
+    # ---------------- 流式请求 ----------------
+    def send_message(self, chat_id,prompt, callback=None, error_callback=None):
+        if not self.handler.valid:
+            if callback:
+                callback("当前没有配置 LLM，请先到设置页面添加或选择配置。")
+            return None
+
+
+        self.db.save_message(chat_id, "user", prompt)
+        full_response = ""
+
+        def inner_callback(text):
+            nonlocal full_response
+            full_response += text
+            if callback:
+                callback(text)
+
+        def inner_error_callback(err):
+            if error_callback:
+                error_callback(err)
+
+        self.handler.stream_response(prompt, callback=inner_callback, error_callback=inner_error_callback)
+        self.db.save_message(chat_id, "assistant", full_response)
+        return chat_id
+
+    # ---------------- 历史记录 ----------------
+    def get_chat_history(self, chat_id):
+        """获取全部聊天记录"""
+        return self.db.get_chat(chat_id)
+
+    def delete_chat_history(self, chat_id):
+        """删除整个聊天会话"""
+        self.db.delete_chat(chat_id)
+
+    def get_recent_history(self, chat_id, last_id=None, limit=20):
+        """
+        分页获取聊天记录
+        :param chat_id: 聊天会话ID
+        :param last_id: 从此id之后获取记录，如果为None则获取最新的limit条
+        :param limit: 获取条数
+        :return: list of records
+        """
+        return self.db.get_recent_chat(chat_id, last_id=last_id, limit=limit)
+
+    def get_last_message_id(self, chat_id):
+        """获取某会话最后一条消息的ID"""
+        history = self.db.get_recent_chat(chat_id, limit=1)
+        if history:
+            return history[-1][0]  # id 在第0列
+        return None
 
 class AIRequestHandler:
     """统一的 AI 请求处理类"""
@@ -226,7 +294,7 @@ class AIRequestHandler:
             return f"错误: {str(e)}"
 
 
-ai_handler = AIRequestHandler.from_current_config()
+ai_handler = AIRequestHandlerWithHistory()
 if __name__ == '__main__':
     # 使用当前配置
     ai = AIRequestHandler.from_current_config()
