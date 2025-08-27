@@ -122,7 +122,6 @@ class ChatContent(ft.Column):
 
         # 流式更新 AI 回复
         def callback(chunk):
-            print(chunk)
             self._ai_container.content.parse_and_add_content(chunk)
             self.update()
             if self.auto_scroll:
