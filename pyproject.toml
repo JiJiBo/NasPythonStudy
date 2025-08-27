@@ -5,11 +5,13 @@ description = ""
 readme = "README.md"
 requires-python = ">=3.9"
 authors = [
-    { name = "Flet developer", email = "you@example.com" }
+    { name = "Flet developer", email = "bigbugbbbb@gmail.com" }
 ]
 dependencies = [
     "flet==0.28.3",
     "flet-webview==0.1.0",
+    "requests",
+    "openai",
 ]
 
 [tool.flet]
