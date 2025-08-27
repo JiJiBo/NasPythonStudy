@@ -1,3 +1,7 @@
+import threading
+import requests
+import json
+
 from kivy.app import App
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.scrollview import ScrollView
@@ -12,74 +16,70 @@ from kivy.uix.widget import Widget
 
 from lib.utils.FontUtils import getFontSTXName
 
-Window.clearcolor = (1, 1, 1, 1)  # 整体白色背景
-
+Window.clearcolor = (1, 1, 1, 1)
 
 class ChatBubble(BoxLayout):
-    def __init__(self, text, is_ai=False, **kwargs):
+    def __init__(self, text="", is_ai=False, **kwargs):
         super().__init__(**kwargs)
         self.orientation = 'horizontal'
         self.padding = [dp(5), dp(5)]
         self.spacing = dp(5)
         self.size_hint_y = None
-        self.height = dp(50)  # Initial height, will be updated
+        self.height = dp(50)
 
-        # Create container for the bubble
-        container = BoxLayout(
+        self.container = BoxLayout(
             orientation='horizontal',
             size_hint=(None, None),
             padding=[dp(15), dp(10)]
         )
 
-        # Create the label
-        label = Label(
+        self.label = Label(
             text=text,
             text_size=(Window.width * 0.6, None),
             size_hint=(None, None),
             halign='left',
             valign='middle',
-            font_name = getFontSTXName(),
-            color=(0, 0, 0, 1)  # Black text for better contrast
+            font_name=getFontSTXName(),
+            color=(0, 0, 0, 1)
         )
-        label.bind(texture_size=self.update_label_size)
+        self.label.bind(texture_size=self.update_label_size)
+        self.container.add_widget(self.label)
+        self.container.size = (self.label.width + dp(30), self.label.height + dp(20))
 
-        # Add label to container
-        container.add_widget(label)
-
-        # Set initial container size
-        container.size = (label.width + dp(30), label.height + dp(20))
-
-        # Draw rounded rectangle background
-        with container.canvas.before:
+        with self.container.canvas.before:
             if is_ai:
-                Color(0.6, 0.9, 0.6, 1)  # AI绿色
+                Color(0.6, 0.9, 0.6, 1)
             else:
-                Color(0.3, 0.6, 1, 1)  # 用户蓝色
+                Color(0.3, 0.6, 1, 1)
             self.rect = RoundedRectangle(
-                pos=container.pos,
-                size=container.size,
+                pos=self.container.pos,
+                size=self.container.size,
                 radius=[dp(15)]
             )
 
-        # Update rectangle when container moves/resizes
-        container.bind(pos=self.update_rect, size=self.update_rect)
+        self.container.bind(pos=self.update_rect, size=self.update_rect)
 
-        # Add appropriate spacing based on sender
         if is_ai:
-            self.add_widget(container)
-            self.add_widget(Widget())  # Spacer
+            self.add_widget(self.container)
+            self.add_widget(Widget())
         else:
-            self.add_widget(Widget())  # Spacer
-            self.add_widget(container)
+            self.add_widget(Widget())
+            self.add_widget(self.container)
 
     def update_label_size(self, instance, value):
         instance.size = value
         instance.parent.size = (value[0] + dp(30), value[1] + dp(20))
-        self.height = value[1] + dp(30)  # Update bubble height
+        self.height = value[1] + dp(30)
 
     def update_rect(self, instance, value):
         self.rect.pos = instance.pos
         self.rect.size = instance.size
+
+    def append_text(self, new_text):
+        """用于流式更新文本"""
+        self.label.text += new_text
+        self.label.texture_update()
+        self.update_label_size(self.label, self.label.texture_size)
 
 
 class ChatScreen(BoxLayout):
@@ -89,7 +89,6 @@ class ChatScreen(BoxLayout):
         self.padding = dp(10)
         self.spacing = dp(10)
 
-        # 聊天区域
         self.scroll = ScrollView(size_hint=(1, 0.85))
         self.chat_layout = BoxLayout(
             orientation='vertical',
@@ -101,12 +100,7 @@ class ChatScreen(BoxLayout):
         self.scroll.add_widget(self.chat_layout)
         self.add_widget(self.scroll)
 
-        # 输入区域
-        input_layout = BoxLayout(
-            size_hint=(1, 0.15),
-            spacing=dp(10),
-            padding=[dp(5), dp(5)]
-        )
+        input_layout = BoxLayout(size_hint=(1, 0.15), spacing=dp(10), padding=[dp(5), dp(5)])
         self.input_box = TextInput(
             multiline=False,
             hint_text="输入消息...",
@@ -134,14 +128,29 @@ class ChatScreen(BoxLayout):
             return
         self.chat_layout.add_widget(ChatBubble(user_text, is_ai=False))
         self.input_box.text = ''
-        Clock.schedule_once(lambda dt: self.ai_reply(user_text), 0.5)
-        Clock.schedule_once(lambda dt: self.scroll_to_bottom(), 0.6)
-
-    def ai_reply(self, user_text):
-        ai_text = f"AI 回复: {user_text[::-1]}"
-        self.chat_layout.add_widget(ChatBubble(ai_text, is_ai=True))
         Clock.schedule_once(lambda dt: self.scroll_to_bottom(), 0.1)
+
+        # 开线程调用流式 AI 回复
+        threading.Thread(target=self.ai_reply_stream, args=(user_text,), daemon=True).start()
+
+    def ai_reply_stream(self, user_text):
+        url = "http://localhost:11434/api/generate"
+        payload = {"model": "deepseek-r1:14b", "prompt": user_text, "stream": True}
+
+        ai_bubble = ChatBubble("", is_ai=True)
+        Clock.schedule_once(lambda dt: self.chat_layout.add_widget(ai_bubble))
+        Clock.schedule_once(lambda dt: self.scroll_to_bottom(), 0.2)
+
+        with requests.post(url, json=payload, stream=True) as res:
+            for line in res.iter_lines():
+                if line:
+                    chunk = json.loads(line.decode('utf-8'))
+                    delta = chunk.get("response", "")
+                    if delta:
+                        Clock.schedule_once(lambda dt, t=delta: ai_bubble.append_text(t))
+                        Clock.schedule_once(lambda dt: self.scroll_to_bottom(), 0.05)
 
     def scroll_to_bottom(self):
         if self.chat_layout.children:
             self.scroll.scroll_to(self.chat_layout.children[0])
+
