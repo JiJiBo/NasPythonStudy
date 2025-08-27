@@ -8,6 +8,7 @@ from src.ui.view.chat_view import ChatContent
 
 
 def main_page(page: ft.Page):
+    page.clean()
     page.title = APP_NAME
     page.theme_mode = ft.ThemeMode.LIGHT
     page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
@@ -52,7 +53,7 @@ def main_page(page: ft.Page):
 
     home_content = HomeContent()
     my_content = MineContent()
-    settings_content = SettingContent()
+    settings_content = SettingContent(page,on_back=lambda a:main_page(page))
     chat_content = ChatContent()
     # 所有页面列表
     pages = [home_content, my_content, settings_content,chat_content]
