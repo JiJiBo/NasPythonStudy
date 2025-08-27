@@ -21,6 +21,6 @@ def deepseek_chat(prompt, model):
 # 1、向AI进行提问，写出需要询问的问题
 prompt = "如何学习Python编程？"
 # 2、需要调用的AI模型，根据本地下载的模型，写入模型名称即可
-model = 'deepseek-r1:1.5b'
+model = 'deepseek-r1:14b'
 # 3、调用函数，与Deepseek建立响应
 deepseek_chat(prompt,model)
