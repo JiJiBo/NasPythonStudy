@@ -1,6 +1,4 @@
 import flet as ft
-from typing import Callable, Optional
-
 from src.ui.llm.llm_settings import llm_setting_page
 
 

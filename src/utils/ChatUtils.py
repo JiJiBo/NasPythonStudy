@@ -249,13 +249,3 @@ class AIRequestHandler:
                 raise e
 
 
-ai_handler = AIRequestHandlerWithHistory()
-if __name__ == '__main__':
-    chat_id = "123"
-    _, resp = ai_handler.get_single_response(chat_id, "用python写一个冒泡排序", n=5)
-    print(resp)
-
-    def print_callback(text):
-        print(text, end="", flush=True)
-
-    ai_handler.send_message(chat_id, "现在帮我写一个快速排序", callback=print_callback, n=5)

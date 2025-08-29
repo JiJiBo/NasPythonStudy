@@ -1,6 +1,6 @@
 import flet as ft
 from src.db.llm_config_db import LLMConfigDB
-from src.utils.ChatUtils import AIRequestHandler, ai_handler
+from src.str.APP_CONFIG import ai_handler
 
 
 def llm_setting_page(page: ft.Page, on_back=None):
@@ -21,7 +21,6 @@ def llm_setting_page(page: ft.Page, on_back=None):
     )
 
     page.clean()
-
 
     selected_config_id = {"id": None}  # 当前载入的配置id
 

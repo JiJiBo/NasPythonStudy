@@ -15,7 +15,7 @@ class ChatPullToRefresh(PullToRefreshList):
         super().__init__(**kwargs)
         self.chat_id = chat_id
         self.history_offset_id = None
-        self.history_limit = 10
+        self.history_limit = 100
 
         # 底部输入
         self.input_box = ft.TextField(
