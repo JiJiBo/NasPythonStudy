@@ -5,7 +5,7 @@ from typing import Optional
 
 import flet as ft
 
-from src.str.APP_CONFIG import ai_handler
+from src.str.APP_CONFIG import ai_handler, kvUtils
 from src.ui.view.PullToRefresh import PullToRefreshList
 from src.ui.view.RitchView import RichContent
 
@@ -15,8 +15,9 @@ class ChatPullToRefresh(PullToRefreshList):
         super().__init__(**kwargs)
         self.chat_id = chat_id
         self.history_offset_id = None
-        self.history_limit = 100
 
+        max_load_history = kvUtils.get_int("max_load_history", default=20)
+        self.history_limit = max_load_history
         # 底部输入
         self.input_box = ft.TextField(
             hint_text="请输入内容...",
@@ -100,7 +101,7 @@ class ChatPullToRefresh(PullToRefreshList):
         def error_callback(err):
             self.add_message(f"错误: {err}", is_user=False)
 
-        ai_handler.send_message(self.chat_id, user_text, callback, error_callback)
+        ai_handler.send_message(self.chat_id, user_text, callback, error_callback, n=self.history_limit)
 
     # ------------------ 历史消息 ------------------
     def load_recent_history_after_mount(self):
