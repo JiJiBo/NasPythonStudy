@@ -5,9 +5,9 @@ from typing import Optional
 
 import flet as ft
 
+from src.str.APP_CONFIG import ai_handler
 from src.ui.view.PullToRefresh import PullToRefreshList
 from src.ui.view.RitchView import RichContent
-from src.utils.ChatUtils import ai_handler
 
 
 class ChatPullToRefresh(PullToRefreshList):
