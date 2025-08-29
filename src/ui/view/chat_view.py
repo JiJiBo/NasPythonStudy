@@ -1,8 +1,9 @@
 import threading
+import platform
+import time
 from typing import Optional
 
 import flet as ft
-import keyboard
 
 from src.ui.view.PullToRefresh import PullToRefreshList
 from src.ui.view.RitchView import RichContent
@@ -45,7 +46,6 @@ class ChatPullToRefresh(PullToRefreshList):
     def refresh_data(self):
         if not self.chat_id:
             return
-        # 这里替换为你的消息获取逻辑，例如 ai_handler.get_recent_history
         messages = []  # 示例
         if messages:
             self.list_view.controls.clear()
@@ -113,34 +113,56 @@ class ChatPullToRefresh(PullToRefreshList):
             self.history_offset_id = messages[0][0]
 
     def did_mount(self):
-        # 初始化加载最新消息
         self.load_recent_history_after_mount()
         self.input_focused = False
         self.scroll_to_bottom()
         self.start_keyboard_listener()
+
     def _on_focus(self, e):
         self.input_focused = True
 
     def _on_blur(self, e):
         self.input_focused = False
+
     def start_keyboard_listener(self):
-        def listen():
-            while not self.stop_listener:
-                if self.input_focused:
-                    if keyboard.is_pressed("enter") and not keyboard.is_pressed("shift"):
-                        # 使用 page.call_later 安全调用 UI 更新
-                        self.send_message("")
-                        keyboard.wait("enter")  # 防止重复触发
+        system = platform.system().lower()
+
+        def listen_keyboard():
+            if system == "darwin":  # macOS 用 pynput
+                from pynput import keyboard as pk
+
+                def on_press(key):
+                    if not self.input_focused:
+                        return
+                    try:
+                        if key == pk.Key.enter:
+                            self.send_message(None)
+                    except Exception as e:
+                        print("键盘监听错误:", e)
+
+                with pk.Listener(on_press=on_press) as listener:
+                    listener.join()
+            else:  # Windows/Linux 用 keyboard
+                import keyboard
+                enter_pressed = False
+                while not self.stop_listener:
+                    if self.input_focused:
+                        if keyboard.is_pressed("enter") and not keyboard.is_pressed("shift"):
+                            if not enter_pressed:
+                                self.send_message(None)
+                                enter_pressed = True
+                        else:
+                            enter_pressed = False
+                    time.sleep(0.05)
 
         self.stop_listener = False
-        self.listener_thread = threading.Thread(target=listen, daemon=True)
+        self.listener_thread = threading.Thread(target=listen_keyboard, daemon=True)
         self.listener_thread.start()
 
     def stop_keyboard_listener(self):
         self.stop_listener = True
-        if self.listener_thread:
+        if hasattr(self, "listener_thread") and self.listener_thread:
             self.listener_thread.join(timeout=0.1)
 
     def will_unmount(self):
-        # 卸载时停止监听
         self.stop_keyboard_listener()
