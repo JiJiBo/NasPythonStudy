@@ -2,6 +2,8 @@ import os
 
 import flet as ft
 from flet.core.markdown import MarkdownCodeTheme
+
+from src.ui.view.CodeRunner import CodeRunner
 from src.ui.view.chat_view import ChatPullToRefresh
 
 
@@ -48,19 +50,27 @@ def study_page(study_dir, page: ft.Page, on_back=None):
             md_content = f.read()
     else:
         md_content = "# 没有找到 study.md 文件"
-
-    # 左边学习区（md 渲染）
+    code_runner = CodeRunner(page)
+    # 左边学习区（md 渲染，可滚动，使用 ListView）
     study_content = ft.Container(
-        content=ft.Markdown(
-            md_content,
-            selectable=True,
-            extension_set=ft.MarkdownExtensionSet.GITHUB_WEB,  # 支持 GitHub 风格扩展
-            code_theme=MarkdownCodeTheme.GOOGLE_CODE,
-            on_tap_link=lambda e: page.launch_url(e.data),
+        content=ft.ListView(
+            controls=[
+                ft.Markdown(
+                    md_content,
+                    selectable=True,
+                    extension_set=ft.MarkdownExtensionSet.GITHUB_WEB,
+                    code_theme=ft.MarkdownCodeTheme.GOOGLE_CODE,
+                    on_tap_link=lambda e: page.launch_url(e.data),
+                    expand=True,
+                ),
+                code_runner
+            ],
             expand=True,
+            padding=10,
+            spacing=10,
+            auto_scroll=False,  # 不自动滚到底部
         ),
         width=700,
-        padding=10,
         bgcolor=ft.Colors.WHITE,
         border_radius=10,
     )
