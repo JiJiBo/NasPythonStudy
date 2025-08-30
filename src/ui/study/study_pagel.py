@@ -10,6 +10,12 @@ def study_page(study_dir, page: ft.Page, on_back=None):
     previous_appbar = getattr(page, "appbar", None)
     study_md = os.path.join(study_dir, "study.md")
     study_title = os.path.basename(study_dir)
+    chat_id = study_dir
+    previous_navigation_bar = getattr(page, "navigation_bar", None)
+    if previous_navigation_bar is not None:
+        page.navigation_bar = None
+        page.update()
+
     def back_click(e):
         if previous_navigation_bar is not None:
             page.navigation_bar = previous_navigation_bar
@@ -61,7 +67,7 @@ def study_page(study_dir, page: ft.Page, on_back=None):
 
     # 右边聊天区
     chat_content = ft.Container(
-        content=ChatPullToRefresh(chat_id="comment"),
+        content=ChatPullToRefresh(chat_id=chat_id),
         alignment=ft.alignment.center,
         expand=True
     )
