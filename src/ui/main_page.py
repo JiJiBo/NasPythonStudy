@@ -52,7 +52,7 @@ def main_page(page: ft.Page, selected_index: int = 0):
         ]
     )
 
-    home_content = HomeContent()
+    home_content = HomeContent(   on_back=lambda a, selected_index=0: main_page(page, selected_index=selected_index))
     my_content = MineContent()
     settings_content = SettingContent(
         page,
