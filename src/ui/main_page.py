@@ -17,7 +17,7 @@ def main_page(page: ft.Page, selected_index: int = 0):
 
     # 页面切换函数
     def change_page(e):
-        index = page.navigation_bar.selected_index 
+        index = page.navigation_bar.selected_index
         content_area.content = pages[index]
         page.update()
 
@@ -52,7 +52,7 @@ def main_page(page: ft.Page, selected_index: int = 0):
         ]
     )
 
-    home_content = HomeContent(   on_back=lambda a, selected_index=0: main_page(page, selected_index=selected_index))
+    home_content = HomeContent(on_back=lambda a, selected_index=0: main_page(page, selected_index=selected_index))
     my_content = MineContent()
     settings_content = SettingContent(
         page,
@@ -60,7 +60,7 @@ def main_page(page: ft.Page, selected_index: int = 0):
     )
     chat_content = ChatPullToRefresh(chat_id="comment")
     # 所有页面列表
-    pages = [home_content, my_content, settings_content,chat_content]
+    pages = [home_content, my_content, settings_content, chat_content]
 
     # 设置默认选中的底部标签
     try:
