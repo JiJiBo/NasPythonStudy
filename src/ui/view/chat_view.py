@@ -75,6 +75,9 @@ class ChatPullToRefresh(PullToRefreshList):
 
     def send_message(self, e):
         user_text = self.input_box.value.strip()
+        self.ask(user_text)
+
+    def ask(self, user_text):
         if not user_text:
             return
         self.add_message(user_text, is_user=True)
