@@ -27,3 +27,5 @@ IndentationError: unexpected
 indent
 ```
 # 如果你看到这里还不是很懂，没关系
+- 现在这个阶段（在接触到if、for等以前 ）
+- 只要代码前面空的位置一样多就OK了。
