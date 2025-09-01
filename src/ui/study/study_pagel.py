@@ -67,10 +67,18 @@ def study_page(study_dir, page: ft.Page, on_back=None):
         md_content = "# 没有找到 study.md 文件"
     if isShowCode:
         code_runner = CodeRunner(page, codeReturn)
+        code_alert = ft.Markdown(f"""
+        # 请在此处输入代码""".strip(),
+                                 selectable=True,
+                                 extension_set=ft.MarkdownExtensionSet.GITHUB_WEB,
+                                 code_theme=ft.MarkdownCodeTheme.GOOGLE_CODE,
+                                 on_tap_link=lambda e: page.launch_url(e.data),
+                                 expand=True, )
         if codeExample:
             code_runner.set_default_code(codeBody)
     else:
         code_runner = ft.Container()
+        code_alert = ft.Container()
     # 右边聊天区
     chat_view = ChatPullToRefresh(chat_id=chat_id)
     chat_content = ft.Container(
@@ -83,6 +91,7 @@ def study_page(study_dir, page: ft.Page, on_back=None):
         if should is not None:
             Q = f"你好，请帮我分析下代码，看看代码符合要求 {should} 吗？请给出中肯的评价 " + str(
                 code_runner.get_run_result())
+
         else:
             Q = "你好，请帮我分析下代码，看看代码符合要求吗？请给出中肯的评价 " + str(code_runner.get_run_result())
         chat_view.ask(Q)
@@ -93,6 +102,14 @@ def study_page(study_dir, page: ft.Page, on_back=None):
             "AI的评价",
             on_click=ask_ai
         )
+        code_alert = ft.Markdown(f"""
+               # 请在此处输入代码\n## 满足**{should}**的要求
+               """.strip(),
+                                 selectable=True,
+                                 extension_set=ft.MarkdownExtensionSet.GITHUB_WEB,
+                                 code_theme=ft.MarkdownCodeTheme.GOOGLE_CODE,
+                                 on_tap_link=lambda e: page.launch_url(e.data),
+                                 expand=True, )
     else:
         ask_button = ft.Container()
     study_content = ft.Container(
@@ -106,7 +123,11 @@ def study_page(study_dir, page: ft.Page, on_back=None):
                     on_tap_link=lambda e: page.launch_url(e.data),
                     expand=True,
                 ),
+                ft.Container(height=100),
+                code_alert,
+                ft.Container(height=100),
                 code_runner,
+                ft.Container(height=50),
                 ask_button
             ],
             expand=True,

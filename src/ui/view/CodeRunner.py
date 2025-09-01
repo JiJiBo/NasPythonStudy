@@ -39,7 +39,7 @@ class CodeRunner(ft.Column):
                 result = eval(last_line, {}, local_vars)
             except:
                 result = None
-
+            isOk = "错误"
             output = sys.stdout.getvalue()
             errors = sys.stderr.getvalue()
             output_text = ""
@@ -48,11 +48,15 @@ class CodeRunner(ft.Column):
             if output:
                 output_text += f"{output}\n"
             if result is not None:
+                if result == self.codeReturn:
+                    isOk = "结果正确"
                 output_text += f"返回值: {result}"
             if not output_text.strip():
+                if self.codeReturn is not None:
+                    isOk = "错误：没有输出 "
                 output_text = "执行完成，无输出"
 
-            self.output_box.value = output_text
+            self.output_box.value = isOk + "  " + output_text
 
         except Exception as ex:
             self.output_box.value = f"异常: {ex}"
