@@ -2,8 +2,6 @@ import os
 
 import flet as ft
 import yaml
-from docutils.nodes import container
-from flet.core.markdown import MarkdownCodeTheme
 
 from src.ui.view.CodeRunner import CodeRunner
 from src.ui.view.chat_view import ChatPullToRefresh
@@ -16,18 +14,20 @@ def study_page(study_dir, page: ft.Page, on_back=None):
     config_path = os.path.join(study_dir, "config.yaml")
     study_title = os.path.basename(study_dir)
     chat_id = study_dir
+
     with open(config_path, encoding='utf-8') as f:
         config = yaml.load(f, Loader=yaml.SafeLoader)
-    print(config)
     isShowCode = config["code"]
     codeReturn = config["codeReturn"]
     codeExample = config["codeExample"]
     should = config["should"]
+
     if codeExample:
         code_path = os.path.join(study_dir, "code.py")
         with open(code_path, "r", encoding="utf-8") as f:
             codeBody = f.read()
         print("codeBody:", codeBody)
+
     previous_navigation_bar = getattr(page, "navigation_bar", None)
     if previous_navigation_bar is not None:
         page.navigation_bar = None
@@ -65,20 +65,25 @@ def study_page(study_dir, page: ft.Page, on_back=None):
             md_content = f.read()
     else:
         md_content = "# 没有找到 study.md 文件"
+
     if isShowCode:
         code_runner = CodeRunner(page, codeReturn)
-        code_alert = ft.Markdown(f"""
-        # 请在此处输入代码""".strip(),
-                                 selectable=True,
-                                 extension_set=ft.MarkdownExtensionSet.GITHUB_WEB,
-                                 code_theme=ft.MarkdownCodeTheme.GOOGLE_CODE,
-                                 on_tap_link=lambda e: page.launch_url(e.data),
-                                 expand=True, )
+        code_alert = ft.Markdown(
+            """
+            # 请在此处输入代码
+            """.strip(),
+            selectable=True,
+            extension_set=ft.MarkdownExtensionSet.GITHUB_WEB,
+            code_theme=ft.MarkdownCodeTheme.GOOGLE_CODE,
+            on_tap_link=lambda e: page.launch_url(e.data),
+            expand=True,
+        )
         if codeExample:
             code_runner.set_default_code(codeBody)
     else:
         code_runner = ft.Container()
         code_alert = ft.Container()
+
     # 右边聊天区
     chat_view = ChatPullToRefresh(chat_id=chat_id)
     chat_content = ft.Container(
@@ -89,29 +94,27 @@ def study_page(study_dir, page: ft.Page, on_back=None):
 
     def ask_ai(e):
         if should is not None:
-            Q = f"你好，请帮我分析下代码，看看代码符合要求 {should} 吗？请给出中肯的评价 " + str(
-                code_runner.get_run_result())
-
+            Q = f"你好，请帮我分析下代码，看看代码符合要求 {should} 吗？请给出中肯的评价 " + str(code_runner.get_run_result())
         else:
             Q = "你好，请帮我分析下代码，看看代码符合要求吗？请给出中肯的评价 " + str(code_runner.get_run_result())
         chat_view.ask(Q)
 
     if should is not None:
-        # 左边学习区（md 渲染，可滚动，使用 ListView）
-        ask_button = ft.Button(
-            "AI的评价",
-            on_click=ask_ai
+        ask_button = ft.Button("AI的评价", on_click=ask_ai)
+        code_alert = ft.Markdown(
+            f"""
+            # 请在此处输入代码
+            ## 满足**{should}**的要求
+            """.strip(),
+            selectable=True,
+            extension_set=ft.MarkdownExtensionSet.GITHUB_WEB,
+            code_theme=ft.MarkdownCodeTheme.GOOGLE_CODE,
+            on_tap_link=lambda e: page.launch_url(e.data),
+            expand=True,
         )
-        code_alert = ft.Markdown(f"""
-               # 请在此处输入代码\n## 满足**{should}**的要求
-               """.strip(),
-                                 selectable=True,
-                                 extension_set=ft.MarkdownExtensionSet.GITHUB_WEB,
-                                 code_theme=ft.MarkdownCodeTheme.GOOGLE_CODE,
-                                 on_tap_link=lambda e: page.launch_url(e.data),
-                                 expand=True, )
     else:
         ask_button = ft.Container()
+    left_width = 600
     study_content = ft.Container(
         content=ft.ListView(
             controls=[
@@ -133,12 +136,36 @@ def study_page(study_dir, page: ft.Page, on_back=None):
             expand=True,
             padding=10,
             spacing=10,
-            auto_scroll=False,  # 不自动滚到底部
+            auto_scroll=False,
         ),
-        width=800,
         bgcolor=ft.Colors.WHITE,
         border_radius=10,
+        width=left_width,
     )
 
-    page.add(ft.Row([study_content, chat_content], expand=True))
+    # -------- 新增：左右可拖动分割 --------
+
+
+    def update_width(e: ft.DragUpdateEvent):
+        nonlocal left_width
+        left_width = max(300, int(left_width + e.delta_x))
+        study_content.width = left_width
+        page.update()
+
+    drag_bar = ft.GestureDetector(
+        drag_interval=10,
+        on_pan_update=update_width,
+        content=ft.Container(
+            width=8,
+            bgcolor=ft.Colors.GREY_300,
+            border_radius=ft.border_radius.all(4),
+        ),
+    )
+
+    layout = ft.Row(
+        controls=[study_content, drag_bar, chat_content],
+        expand=True,
+    )
+
+    page.add(layout)
     page.update()
