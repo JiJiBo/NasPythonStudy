@@ -103,8 +103,7 @@ def study_page(study_dir, page: ft.Page, on_back=None):
         ask_button = ft.Button("AI的评价", on_click=ask_ai)
         code_alert = ft.Markdown(
             f"""
-            # 请在此处输入代码
-            ## 满足**{should}**的要求
+            # 请在此处输入代码\n## 满足**{should}**的要求
             """.strip(),
             selectable=True,
             extension_set=ft.MarkdownExtensionSet.GITHUB_WEB,
