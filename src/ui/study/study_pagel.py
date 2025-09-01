@@ -135,7 +135,7 @@ def study_page(study_dir, page: ft.Page, on_back=None):
             spacing=10,
             auto_scroll=False,  # 不自动滚到底部
         ),
-        width=700,
+        width=800,
         bgcolor=ft.Colors.WHITE,
         border_radius=10,
     )
