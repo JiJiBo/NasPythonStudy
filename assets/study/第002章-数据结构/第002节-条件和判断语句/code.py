@@ -1,6 +1,4 @@
 def isGreater(a, b):
-    # 返回结果
-    return
-
+    # 在这里实现代码逻辑
 
 isGreater(1, 2)
