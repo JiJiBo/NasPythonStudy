@@ -13,60 +13,60 @@
 ## 一、下载
 
 - 根据自己的系统和cpu架构，选择合适的版本
-- ![img_1.png](img_1.png)
+- ![img_1.png](./assets/01-02/img_1.png)
 
 ## 二、安装
 
 - 双击下载好的安装包
-  ![img.png](img.png)
+  ![img.png](./assets/01-02/img.png)
 - 选择同意
 - 选择安装路径
-  ![img_8.png](img_8.png)
-  ![img_9.png](img_9.png)
+  ![img_8.png](./assets/01-02/img_8.png)
+  ![img_9.png](./assets/01-02/img_9.png)
 - 下一步
-  ![img_2.png](img_2.png)
+  ![img_2.png](./assets/01-02/img_2.png)
 - 再下一步
-  ![img_3.png](img_3.png)
+  ![img_3.png](./assets/01-02/img_3.png)
 - 安装
-  ![img_4.png](img_4.png)
+  ![img_4.png](./assets/01-02/img_4.png)
 - 完毕
-  ![img_5.png](img_5.png)
+  ![img_5.png](./assets/01-02/img_5.png)
 
 # 语言设置
 
 - 打开app
 - 选择扩展，在扩展中搜索chinese中文语言包进行install安装
-  ![img_10.png](img_10.png)
+  ![img_10.png](./assets/01-02/img_10.png)
 - 重启后，就是中文了
-  ![img_11.png](img_11.png)
+  ![img_11.png](./assets/01-02/img_11.png)
 
 # 配置python解释器
 
 - https://www.python.org/
 - 在这里下载
-  ![img_12.png](img_12.png)
+  ![img_12.png](./assets/01-02/img_12.png)
 - 打开安装包
-  ![img_13.png](img_13.png)
+  ![img_13.png](./assets/01-02/img_13.png)
 - 直接一路安装就行了
-  ![img_14.png](img_14.png)
+  ![img_14.png](./assets/01-02/img_14.png)
 
 # 配置python步骤
 
 - 打开软件后，按照图上来，安装python插件
-  ![img_6.png](img_6.png)
-  ![img_7.png](img_7.png)
+  ![img_6.png](./assets/01-02/img_6.png)
+  ![img_7.png](./assets/01-02/img_7.png)
 - 然后在硬盘里，准备一个文件夹，放你学习的代码。
-  ![img_15.png](img_15.png)
+  ![img_15.png](./assets/01-02/img_15.png)
 - 用vscode打开
-  ![img_16.png](img_16.png)
-  ![img_17.png](img_17.png)
+  ![img_16.png](./assets/01-02/img_16.png)
+  ![img_17.png](./assets/01-02/img_17.png)
 - 信任文件夹
-  ![img_18.png](img_18.png)
+  ![img_18.png](./assets/01-02/img_18.png)
 - 新建一个空白文件
-  ![img_19.png](img_19.png)
+  ![img_19.png](./assets/01-02/img_19.png)
 - 大概这个位置，选择一个编译器
-  ![img_20.png](img_20.png)
-  ![img_21.png](img_21.png)
+  ![img_20.png](./assets/01-02/img_20.png)
+  ![img_21.png](./assets/01-02/img_21.png)
 - 然后把这个代码写在空白文件里
 
 ```python
@@ -74,9 +74,9 @@ print("Hello, World!")
 ```
 
 - 右击文件，在弹出的对话框，选择执行。
-  ![img_22.png](img_22.png)
+  ![img_22.png](./assets/01-02/img_22.png)
 - 顺利的话，会打印出 **hello world**
-  ![img_23.png](img_23.png)
+  ![img_23.png](./assets/01-02/img_23.png)
 
 # 什么是hello world？
 
