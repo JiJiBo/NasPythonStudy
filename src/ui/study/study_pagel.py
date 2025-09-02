@@ -94,7 +94,7 @@ def study_page(study_dir, page: ft.Page, on_back=None):
 
     def ask_ai(e):
         if should is not None:
-            Q = f"你好，请帮我分析下代码，看看代码符合要求 {should} 吗？请给出中肯的评价 " + str(code_runner.get_run_result())
+            Q = f"你好，请帮我分析下代码，看看代码符合要求 {should} 吗？请给出中肯的评价!只要符合要求，可执行，按要求输出，并且没有偷工减料，就可以，不用太严格。最后给出评分，只要按要求输出了，没有错误，就给100分满分。" + str(code_runner.get_run_result())
         else:
             Q = "你好，请帮我分析下代码，看看代码符合要求吗？请给出中肯的评价 " + str(code_runner.get_run_result())
         chat_view.ask(Q)

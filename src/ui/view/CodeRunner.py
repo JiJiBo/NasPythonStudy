@@ -39,7 +39,7 @@ class CodeRunner(ft.Column):
                 result = eval(last_line, {}, local_vars)
             except:
                 result = None
-            isOk = "错误"
+            isOk = ""
             output = sys.stdout.getvalue()
             errors = sys.stderr.getvalue()
             output_text = ""
