@@ -34,11 +34,11 @@ class RichContent(ft.Column):
                 if len(think_text) > 0:
                     self.controls.append(
                         ft.Container(
-                            content=ft.Text(
+                            content=ft.Markdown(
                                 "思考：" + think_text,
-                                size=14,
-                                color=ft.Colors.GREY_700,
                                 selectable=True,
+                                code_theme=MarkdownCodeTheme.GOOGLE_CODE,
+                                extension_set=MarkdownExtensionSet.GITHUB_WEB,
                             ),
                             bgcolor=ft.Colors.WHITE,
                             border_radius=8,
@@ -52,11 +52,11 @@ class RichContent(ft.Column):
                 if len(think_text) > 0:
                     self.controls.append(
                         ft.Container(
-                            content=ft.Text(
+                            content=ft.Markdown(
                                 "思考：" + think_text,
-                                size=14,
-                                color=ft.Colors.GREY_700,
                                 selectable=True,
+                                code_theme=MarkdownCodeTheme.GOOGLE_CODE,
+                                extension_set=MarkdownExtensionSet.GITHUB_WEB,
                             ),
                             bgcolor=ft.Colors.WHITE,
                             border_radius=8,
@@ -70,11 +70,11 @@ class RichContent(ft.Column):
                 if len(think_text) > 0:
                     self.controls.append(
                         ft.Container(
-                            content=ft.Text(
+                            content=ft.Markdown(
                                 "思考：" + think_text,
-                                size=14,
-                                color=ft.Colors.GREY_700,
                                 selectable=True,
+                                code_theme=MarkdownCodeTheme.GOOGLE_CODE,
+                                extension_set=MarkdownExtensionSet.GITHUB_WEB,
                             ),
                             bgcolor=ft.Colors.WHITE,
                             border_radius=8,

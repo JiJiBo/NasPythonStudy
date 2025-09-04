@@ -66,7 +66,7 @@ class SettingContent(ft.Column):
             try:
                 value = int(tf.value)
                 print("设置聊天记录条数为:", value)
-                kvUtils.set_int("max_load_history", value)
+                kvUtils.put_int("max_load_history", value)
                 self.p.close(dlg_modal)
             except ValueError:
                 tf.error_text = "请输入整数"
