@@ -12,8 +12,6 @@ def main_page(page: ft.Page, selected_index: int = 0):
     page.clean()
     page.title = APP_NAME
     page.theme_mode = ft.ThemeMode.LIGHT
-    page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
-    page.vertical_alignment = ft.MainAxisAlignment.CENTER
 
     # 页面切换函数
     def change_page(e):
@@ -80,7 +78,6 @@ def main_page(page: ft.Page, selected_index: int = 0):
     # 内容区域
     content_area = ft.Container(
         content=pages[page.navigation_bar.selected_index],
-        alignment=ft.alignment.center,
         expand=True
     )
 

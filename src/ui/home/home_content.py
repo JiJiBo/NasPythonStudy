@@ -85,7 +85,9 @@ class HomeContent(ft.Column):
                     leading=chapter_icon,
                     title=chapter_title,
                     subtitle=chapter_subtitle,
-                    controls=[]
+                    controls=[],
+                    maintain_state=True,  # 保持状态
+                    tile_padding=ft.padding.only(left=16, right=16),  # 设置内边距
                 )
 
                 # 遍历小节
@@ -126,8 +128,10 @@ class HomeContent(ft.Column):
                 self.controls.append(chapter_panel)
 
         self.alignment = ft.MainAxisAlignment.START
-        self.horizontal_alignment = ft.CrossAxisAlignment.CENTER
+        self.horizontal_alignment = ft.CrossAxisAlignment.START  # 改为左对齐
         self.spacing = 10
+        self.scroll = ft.ScrollMode.AUTO  # 启用自动滚动
+        self.padding = ft.padding.only(left=16, top=16, right=16, bottom=16)  # 添加容器内边距
 
     def refresh_ui(self):
         """刷新UI，重新加载学习进度"""
