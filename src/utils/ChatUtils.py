@@ -49,11 +49,24 @@ class AIRequestHandlerWithHistory:
         if not self.handler.valid:
             return None, "当前没有配置 LLM，请先到设置页面添加或选择配置。"
 
-        messages = self.build_prompt_with_history(chat_id, prompt, n=n)
+        # 先保存用户消息
+        self.db.save_message(chat_id, "user", prompt)
+        
+        # 构建历史记录（不包含当前用户消息）
+        history = self.db.get_recent_chat(chat_id, limit=n)
+        messages = []
+        for record in history[:-1]:  # 排除刚保存的用户消息
+            msg_id, role, content, *_ = record
+            if role == "user":
+                messages.append({"role": "user", "content": content})
+            elif role == "assistant":
+                messages.append({"role": "assistant", "content": content})
+
+        messages.append({"role": "user", "content": prompt})
+        
         resp = self.handler.get_response_with_history(messages)
         
-        # 保存用户消息和AI响应到数据库
-        self.db.save_message(chat_id, "user", prompt)
+        # 保存AI响应
         self.db.save_message(chat_id, "assistant", resp)
         return chat_id, resp
 
@@ -67,6 +80,9 @@ class AIRequestHandlerWithHistory:
         # 重置取消标志，开始新请求
         self.reset_cancel_flag()
 
+        # 先保存用户消息
+        self.db.save_message(chat_id, "user", prompt)
+        
         full_response = ""
 
         def inner_callback(text):
@@ -83,7 +99,17 @@ class AIRequestHandlerWithHistory:
             if not self.is_cancelled() and error_callback:
                 error_callback(err)
 
-        messages = self.build_prompt_with_history(chat_id, prompt, n=n)
+        # 构建历史记录（不包含当前用户消息）
+        history = self.db.get_recent_chat(chat_id, limit=n)
+        messages = []
+        for record in history[:-1]:  # 排除刚保存的用户消息
+            msg_id, role, content, *_ = record
+            if role == "user":
+                messages.append({"role": "user", "content": content})
+            elif role == "assistant":
+                messages.append({"role": "assistant", "content": content})
+
+        messages.append({"role": "user", "content": prompt})
 
         self.handler.stream_response_with_history(
             messages,
@@ -92,9 +118,8 @@ class AIRequestHandlerWithHistory:
             cancel_check=self.is_cancelled
         )
 
-        # 如果没有被取消，保存用户消息和完整的响应
+        # 如果没有被取消，保存AI响应
         if not self.is_cancelled():
-            self.db.save_message(chat_id, "user", prompt)
             self.db.save_message(chat_id, "assistant", full_response)
         return chat_id
 

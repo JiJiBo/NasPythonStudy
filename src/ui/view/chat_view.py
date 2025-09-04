@@ -40,7 +40,14 @@ class ChatPullToRefresh(PullToRefreshList):
     def key_down_handler(self, e: ft.KeyboardEvent):
         # 检查是否按下回车且没有按 Shift
         if e.key == "Enter" and not e.shift:
-            self.send_message(None)  # 注意 send_message 有一个参数 e
+            # 防止重复触发
+            if hasattr(self, '_last_send_time') and time.time() - self._last_send_time < 0.1:
+                return
+            self._last_send_time = time.time()
+            
+            user_text = self.input_box.value.strip()
+            if user_text:
+                self.ask(user_text)
             e.prevent_default = True  # 阻止默认换行
 
     # ------------------ 下拉刷新 ------------------
@@ -75,7 +82,8 @@ class ChatPullToRefresh(PullToRefreshList):
 
     def send_message(self, e):
         user_text = self.input_box.value.strip()
-        self.ask(user_text)
+        if user_text:
+            self.ask(user_text)
 
     def ask(self, user_text):
         if not user_text:
@@ -140,7 +148,14 @@ class ChatPullToRefresh(PullToRefreshList):
                         return
                     try:
                         if key == pk.Key.enter:
-                            self.send_message(None)
+                            # 防止重复触发
+                            if hasattr(self, '_last_send_time') and time.time() - self._last_send_time < 0.1:
+                                return
+                            self._last_send_time = time.time()
+                            
+                            user_text = self.input_box.value.strip()
+                            if user_text:
+                                self.ask(user_text)
                     except Exception as e:
                         print("键盘监听错误:", e)
 
@@ -153,7 +168,14 @@ class ChatPullToRefresh(PullToRefreshList):
                     if self.input_focused:
                         if keyboard.is_pressed("enter") and not keyboard.is_pressed("shift"):
                             if not enter_pressed:
-                                self.send_message(None)
+                                # 防止重复触发
+                                if hasattr(self, '_last_send_time') and time.time() - self._last_send_time < 0.1:
+                                    continue
+                                self._last_send_time = time.time()
+                                
+                                user_text = self.input_box.value.strip()
+                                if user_text:
+                                    self.ask(user_text)
                                 enter_pressed = True
                         else:
                             enter_pressed = False
