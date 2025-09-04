@@ -191,9 +191,9 @@ def study_page(study_dir, page: ft.Page, on_back=None):
     def ask_ai_evaluation(e):
         """AI代码评价"""
         if should is not None:
-            Q = f"你好！请帮我分析这段代码，看看是否符合要求「{should}」。请从以下几个方面进行评价：\n\n1. 功能完整性：是否按要求实现了所有功能\n2. 代码质量：代码结构、命名、注释等\n3. 执行结果：运行结果是否正确\n4. 改进建议：有哪些可以优化的地方\n\n请给出中肯的评价，最后给出0-100分的评分。\n\n代码内容：\n{code_runner.get_run_result()}"
+            Q = f"你好，请帮我分析下代码，看看代码符合要求 {should} 吗？请给出中肯的评价!只要符合要求，可执行，按要求输出，并且没有偷工减料，就可以，不用太严格。最后给出评分，只要按要求输出了，没有错误，就给100分满分。" + str(code_runner.get_run_result())
         else:
-            Q = f"你好！请帮我分析这段代码，从代码质量、功能实现、执行结果等方面给出专业评价，并提供改进建议。最后给出0-100分的评分。\n\n代码内容：\n{code_runner.get_run_result()}"
+            Q = "你好，请帮我分析下代码，看看代码符合要求吗？请给出中肯的评价 " + str(code_runner.get_run_result())
         chat_view.ask(Q)
     
     def ask_ai_help(e):

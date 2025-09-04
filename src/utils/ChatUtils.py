@@ -49,10 +49,11 @@ class AIRequestHandlerWithHistory:
         if not self.handler.valid:
             return None, "当前没有配置 LLM，请先到设置页面添加或选择配置。"
 
-        self.db.save_message(chat_id, "user", prompt)
         messages = self.build_prompt_with_history(chat_id, prompt, n=n)
-
         resp = self.handler.get_response_with_history(messages)
+        
+        # 保存用户消息和AI响应到数据库
+        self.db.save_message(chat_id, "user", prompt)
         self.db.save_message(chat_id, "assistant", resp)
         return chat_id, resp
 
@@ -66,7 +67,6 @@ class AIRequestHandlerWithHistory:
         # 重置取消标志，开始新请求
         self.reset_cancel_flag()
 
-        self.db.save_message(chat_id, "user", prompt)
         full_response = ""
 
         def inner_callback(text):
@@ -92,8 +92,9 @@ class AIRequestHandlerWithHistory:
             cancel_check=self.is_cancelled
         )
 
-        # 如果没有被取消，保存完整的响应
+        # 如果没有被取消，保存用户消息和完整的响应
         if not self.is_cancelled():
+            self.db.save_message(chat_id, "user", prompt)
             self.db.save_message(chat_id, "assistant", full_response)
         return chat_id
 
