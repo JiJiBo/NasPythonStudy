@@ -18,6 +18,15 @@ def main_page(page: ft.Page, selected_index: int = 0):
     # 页面切换函数
     def change_page(e):
         index = page.navigation_bar.selected_index
+
+        # 在切换页面前，清理当前页面的异步操作
+        try:
+            current_content = content_area.content
+            if hasattr(current_content, 'will_unmount'):
+                current_content.will_unmount()
+        except Exception as ex:
+            print(f"清理页面时出错: {ex}")
+
         content_area.content = pages[index]
         page.update()
 

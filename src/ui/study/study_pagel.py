@@ -57,10 +57,62 @@ def study_page(study_dir, page: ft.Page, on_back=None):
         page.navigation_bar = None
         page.update()
 
+    def cleanup_page():
+        """彻底清理页面状态"""
+        try:
+            # 取消所有正在进行的异步操作
+            if hasattr(chat_view, 'will_unmount'):
+                chat_view.will_unmount()
+
+            # 清理所有可能的异步任务
+            import threading
+            import gc
+
+            # 获取所有活跃线程并尝试清理
+            current_threads = threading.enumerate()
+            for thread in current_threads:
+                if thread.daemon and hasattr(thread, '_target'):
+                    # 清理可能的后台线程
+                    pass
+
+            # 强制垃圾回收，清理可能的循环引用
+            gc.collect()
+
+            # 清理页面控件引用
+            if hasattr(page, '_controls'):
+                page._controls.clear()
+
+            # 清理对话框
+            if hasattr(page, 'dialog') and page.dialog:
+                try:
+                    page.close(page.dialog)
+                except:
+                    pass
+
+            # 清理线程引用
+            if hasattr(page, '_exit_thread'):
+                delattr(page, '_exit_thread')
+
+            # 清理页面事件
+            if hasattr(page, 'on_disconnect'):
+                page.on_disconnect = None
+
+        except Exception as ex:
+            print(f"清理页面时出错: {ex}")
+
     def back_click(e):
+        # 先进行彻底清理
+        cleanup_page()
+
         if previous_navigation_bar is not None:
             page.navigation_bar = previous_navigation_bar
         page.appbar = previous_appbar
+
+        # 清理页面内容
+        try:
+            page.clean()
+        except:
+            pass
 
         if on_back:
             try:
@@ -196,14 +248,20 @@ def study_page(study_dir, page: ft.Page, on_back=None):
         page.snack_bar.open = True
         page.update()
         
-        # 延迟1秒后退出页面
+            # 延迟1秒后退出页面
         def exit_page():
             import time
             time.sleep(1)
-            back_click(None)
-        
+            # 检查页面是否已经被手动关闭
+            if hasattr(page, 'dialog') and not page.dialog:
+                back_click(None)
+
         import threading
-        threading.Thread(target=exit_page, daemon=True).start()
+        exit_thread = threading.Thread(target=exit_page, daemon=True)
+        exit_thread.start()
+
+        # 将线程引用保存到页面，以便在手动退出时可以取消
+        page._exit_thread = exit_thread
 
     def show_completion_dialog(e):
         """显示完成确认对话框"""

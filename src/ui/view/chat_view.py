@@ -170,3 +170,6 @@ class ChatPullToRefresh(PullToRefreshList):
 
     def will_unmount(self):
         self.stop_keyboard_listener()
+        # 取消当前正在进行的AI请求
+        if hasattr(ai_handler, 'cancel_current_request'):
+            ai_handler.cancel_current_request()
