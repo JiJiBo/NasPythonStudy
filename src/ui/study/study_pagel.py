@@ -116,8 +116,8 @@ def study_page(study_dir, page: ft.Page, on_back=None):
         if codeExample:
             code_runner.set_default_code(codeBody)
     else:
-        code_runner = ft.Container()
-        code_alert = ft.Container()
+        code_runner = None
+        code_alert = None
 
     # 右边聊天区
     chat_view = ChatPullToRefresh(chat_id=chat_id)
@@ -136,11 +136,27 @@ def study_page(study_dir, page: ft.Page, on_back=None):
         )
     )
 
-    def ask_ai(e):
+    def ask_ai_evaluation(e):
+        """AI代码评价"""
         if should is not None:
-            Q = f"你好，请帮我分析下代码，看看代码符合要求 {should} 吗？请给出中肯的评价!只要符合要求，可执行，按要求输出，并且没有偷工减料，就可以，不用太严格。最后给出评分，只要按要求输出了，没有错误，就给100分满分。" + str(code_runner.get_run_result())
+            Q = f"你好！请帮我分析这段代码，看看是否符合要求「{should}」。请从以下几个方面进行评价：\n\n1. 功能完整性：是否按要求实现了所有功能\n2. 代码质量：代码结构、命名、注释等\n3. 执行结果：运行结果是否正确\n4. 改进建议：有哪些可以优化的地方\n\n请给出中肯的评价，最后给出0-100分的评分。\n\n代码内容：\n{code_runner.get_run_result()}"
         else:
-            Q = "你好，请帮我分析下代码，看看代码符合要求吗？请给出中肯的评价 " + str(code_runner.get_run_result())
+            Q = f"你好！请帮我分析这段代码，从代码质量、功能实现、执行结果等方面给出专业评价，并提供改进建议。最后给出0-100分的评分。\n\n代码内容：\n{code_runner.get_run_result()}"
+        chat_view.ask(Q)
+    
+    def ask_ai_help(e):
+        """AI学习帮助"""
+        Q = f"你好！我正在学习「{section_name}」，请帮我：\n\n1. 解释这个知识点的核心概念\n2. 提供一些实用的学习建议\n3. 推荐相关的练习题\n4. 解答我可能遇到的疑问\n\n请用通俗易懂的方式讲解，谢谢！"
+        chat_view.ask(Q)
+    
+    def ask_ai_optimize(e):
+        """AI代码优化"""
+        Q = f"你好！请帮我优化这段代码，让它更简洁、高效、易读。请提供优化后的代码和优化说明。\n\n原代码：\n{code_runner.get_run_result()}"
+        chat_view.ask(Q)
+    
+    def ask_ai_explain(e):
+        """AI代码解释"""
+        Q = f"你好！请详细解释这段代码的执行过程和每行代码的作用，帮助我更好地理解。\n\n代码：\n{code_runner.get_run_result()}"
         chat_view.ask(Q)
 
     def complete_study(e):
@@ -236,8 +252,62 @@ def study_page(study_dir, page: ft.Page, on_back=None):
         page.open(confirm_dialog)
         page.update()
 
-    if should is not None:
-        ask_button = ft.Button("AI的评价", on_click=ask_ai)
+    # 根据是否有代码要求创建不同的AI按钮
+    if isShowCode and should is not None:
+        # 有代码要求时的AI按钮组（两行布局）
+        ai_buttons = ft.Column([
+            ft.Row([
+                ft.ElevatedButton(
+                    "🤖 AI评价",
+                    on_click=ask_ai_evaluation,
+                    bgcolor=ft.Colors.BLUE,
+                    color=ft.Colors.WHITE,
+                    icon=ft.Icons.STAR,
+                    style=ft.ButtonStyle(
+                        shape=ft.RoundedRectangleBorder(radius=8),
+                        padding=ft.padding.symmetric(horizontal=16, vertical=12)
+                    )
+                ),
+                ft.ElevatedButton(
+                    "💡 学习帮助",
+                    on_click=ask_ai_help,
+                    bgcolor=ft.Colors.ORANGE,
+                    color=ft.Colors.WHITE,
+                    icon=ft.Icons.HELP,
+                    style=ft.ButtonStyle(
+                        shape=ft.RoundedRectangleBorder(radius=8),
+                        padding=ft.padding.symmetric(horizontal=16, vertical=12)
+                    )
+                )
+            ], alignment=ft.MainAxisAlignment.CENTER, spacing=15),
+            ft.Container(height=10),
+            ft.Row([
+                ft.ElevatedButton(
+                    "⚡ 代码优化",
+                    on_click=ask_ai_optimize,
+                    bgcolor=ft.Colors.PURPLE,
+                    color=ft.Colors.WHITE,
+                    icon=ft.Icons.SPEED,
+                    style=ft.ButtonStyle(
+                        shape=ft.RoundedRectangleBorder(radius=8),
+                        padding=ft.padding.symmetric(horizontal=16, vertical=12)
+                    )
+                ),
+                ft.ElevatedButton(
+                    "📖 代码解释",
+                    on_click=ask_ai_explain,
+                    bgcolor=ft.Colors.TEAL,
+                    color=ft.Colors.WHITE,
+                    icon=ft.Icons.BOOK,
+                    style=ft.ButtonStyle(
+                        shape=ft.RoundedRectangleBorder(radius=8),
+                        padding=ft.padding.symmetric(horizontal=16, vertical=12)
+                    )
+                )
+            ], alignment=ft.MainAxisAlignment.CENTER, spacing=15)
+        ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=0)
+        
+        ask_button = ai_buttons
         code_alert = ft.Markdown(
             f"""
             # 请在此处输入代码\n## 满足**{should}**的要求
@@ -248,8 +318,78 @@ def study_page(study_dir, page: ft.Page, on_back=None):
             on_tap_link=lambda e: page.launch_url(e.data),
             expand=True,
         )
+    elif isShowCode:
+        # 有代码但没有特定要求时的AI按钮（两行布局）
+        ai_buttons = ft.Column([
+            ft.Row([
+                ft.ElevatedButton(
+                    "🤖 AI评价",
+                    on_click=ask_ai_evaluation,
+                    bgcolor=ft.Colors.BLUE,
+                    color=ft.Colors.WHITE,
+                    icon=ft.Icons.STAR,
+                    style=ft.ButtonStyle(
+                        shape=ft.RoundedRectangleBorder(radius=8),
+                        padding=ft.padding.symmetric(horizontal=16, vertical=12)
+                    )
+                ),
+                ft.ElevatedButton(
+                    "💡 学习帮助",
+                    on_click=ask_ai_help,
+                    bgcolor=ft.Colors.ORANGE,
+                    color=ft.Colors.WHITE,
+                    icon=ft.Icons.HELP,
+                    style=ft.ButtonStyle(
+                        shape=ft.RoundedRectangleBorder(radius=8),
+                        padding=ft.padding.symmetric(horizontal=16, vertical=12)
+                    )
+                )
+            ], alignment=ft.MainAxisAlignment.CENTER, spacing=15),
+            ft.Container(height=10),
+            ft.Row([
+                ft.ElevatedButton(
+                    "⚡ 代码优化",
+                    on_click=ask_ai_optimize,
+                    bgcolor=ft.Colors.PURPLE,
+                    color=ft.Colors.WHITE,
+                    icon=ft.Icons.SPEED,
+                    style=ft.ButtonStyle(
+                        shape=ft.RoundedRectangleBorder(radius=8),
+                        padding=ft.padding.symmetric(horizontal=16, vertical=12)
+                    )
+                ),
+                ft.ElevatedButton(
+                    "📖 代码解释",
+                    on_click=ask_ai_explain,
+                    bgcolor=ft.Colors.TEAL,
+                    color=ft.Colors.WHITE,
+                    icon=ft.Icons.BOOK,
+                    style=ft.ButtonStyle(
+                        shape=ft.RoundedRectangleBorder(radius=8),
+                        padding=ft.padding.symmetric(horizontal=16, vertical=12)
+                    )
+                )
+            ], alignment=ft.MainAxisAlignment.CENTER, spacing=15)
+        ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=0)
+        
+        ask_button = ai_buttons
     else:
-        ask_button = ft.Container()
+        # 没有代码时的AI按钮（只有学习帮助）
+        ai_buttons = ft.Row([
+            ft.ElevatedButton(
+                "💡 学习帮助",
+                on_click=ask_ai_help,
+                bgcolor=ft.Colors.ORANGE,
+                color=ft.Colors.WHITE,
+                icon=ft.Icons.HELP,
+                style=ft.ButtonStyle(
+                    shape=ft.RoundedRectangleBorder(radius=8),
+                    padding=ft.padding.symmetric(horizontal=24, vertical=16)
+                )
+            )
+        ], alignment=ft.MainAxisAlignment.CENTER, spacing=10)
+        
+        ask_button = ai_buttons
     
     # 检查当前小节是否已完成
     is_section_completed = db.is_section_completed(chapter_name, section_name) if chapter_name else False
@@ -314,20 +454,18 @@ def study_page(study_dir, page: ft.Page, on_back=None):
                     )
                 ),
                 
-                ft.Container(height=20),
-                
-                # 代码区域
+                # 代码区域（仅在isShowCode为True时显示）
+                ft.Container(height=20) if isShowCode else ft.Container(),
                 ft.Container(
                     content=code_alert,
                     padding=ft.padding.all(20),
                     bgcolor=ft.Colors.GREY_50,
                     border_radius=12,
                     border=ft.border.all(1, ft.Colors.GREY_300)
-                ),
+                ) if code_alert else ft.Container(),
                 
-                ft.Container(height=20),
-                
-                # 代码运行器
+                # 代码运行器（仅在isShowCode为True时显示）
+                ft.Container(height=20) if isShowCode else ft.Container(),
                 ft.Container(
                     content=code_runner,
                     padding=ft.padding.all(20),
@@ -340,15 +478,31 @@ def study_page(study_dir, page: ft.Page, on_back=None):
                         color=ft.Colors.BLACK12,
                         offset=ft.Offset(0, 1)
                     )
-                ),
+                ) if code_runner else ft.Container(),
                 
                 ft.Container(height=20),
                 
-                # AI评价按钮
+                # AI功能按钮区域
                 ft.Container(
-                    content=ask_button,
+                    content=ft.Column([
+                        ft.Text("🤖 AI智能助手", 
+                               size=18, 
+                               weight=ft.FontWeight.BOLD, 
+                               color=ft.Colors.BLUE,
+                               text_align=ft.TextAlign.CENTER),
+                        ft.Container(height=10),
+                        ask_button,
+                        ft.Container(height=5),
+                        ft.Text("点击按钮获取AI帮助，提升学习效果", 
+                               size=12, 
+                               color=ft.Colors.GREY_600,
+                               text_align=ft.TextAlign.CENTER)
+                    ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),
                     alignment=ft.alignment.center,
-                    padding=ft.padding.symmetric(vertical=10)
+                    padding=ft.padding.all(20),
+                    bgcolor=ft.Colors.BLUE_50,
+                    border_radius=12,
+                    border=ft.border.all(1, ft.Colors.BLUE_200)
                 ),
                 
                 ft.Container(height=20),
