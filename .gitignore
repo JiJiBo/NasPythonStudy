@@ -165,3 +165,4 @@ storage/
 /.idea/
 /src/.idea
 /*.db
+/kv_store.json
