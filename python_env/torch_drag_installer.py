@@ -572,13 +572,18 @@ class TorchDragInstaller:
                 cmd = [str(python_exe), "-m", "pip", "install", file_path]
                 self.update_log(f"执行命令: {' '.join(cmd)}")
                 
+                # 设置环境变量确保UTF-8编码
+                env = os.environ.copy()
+                env['PYTHONIOENCODING'] = 'utf-8'
+                
                 process = subprocess.Popen(
                     cmd,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.STDOUT,
                     text=True,
                     encoding='utf-8',
-                    errors='replace'
+                    errors='replace',
+                    env=env
                 )
                 
                 # 实时读取输出
@@ -611,10 +616,15 @@ class TorchDragInstaller:
         """验证安装"""
         try:
             python_exe = Path("python_env/python.exe")
+            
+            # 设置环境变量确保UTF-8编码
+            env = os.environ.copy()
+            env['PYTHONIOENCODING'] = 'utf-8'
+            
             result = subprocess.run([
                 str(python_exe), "-c",
                 "import torch; print(f'PyTorch版本: {torch.__version__}'); print(f'CUDA可用: {torch.cuda.is_available()}'); print(f'CUDA版本: {torch.version.cuda if torch.cuda.is_available() else \"N/A\"}'); print(f'GPU数量: {torch.cuda.device_count() if torch.cuda.is_available() else 0}')"
-            ], capture_output=True, text=True)
+            ], capture_output=True, text=True, encoding='utf-8', errors='replace', env=env)
             
             if result.returncode == 0:
                 self.update_log("✅ 验证结果:")
@@ -638,7 +648,7 @@ class TorchDragInstaller:
     def update_log(self, message):
         """更新日志"""
         def update():
-            current_log = self.install_log.value
+            current_log = self.install_log.value or ""
             if current_log:
                 self.install_log.value = current_log + "\n" + message
             else:

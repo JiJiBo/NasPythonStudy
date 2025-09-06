@@ -9,27 +9,49 @@ import os
 import json
 import sys
 import logging
+import subprocess
 from typing import List, Dict, Any, Optional, Callable
 from pathlib import Path
 
-# 添加python_env到Python路径
+# 检查python_env中的torch和transformers
 python_env_path = Path(__file__).parent.parent.parent / "python_env"
+TORCH_AVAILABLE = False
+TRANSFORMERS_AVAILABLE = False
+
 if python_env_path.exists():
-    sys.path.insert(0, str(python_env_path))
+    python_exe = python_env_path / "python.exe"
+    if python_exe.exists():
+        try:
+            import subprocess
+            # 检查torch是否可用
+            result = subprocess.run([
+                str(python_exe), "-c", "import torch; print('torch_available')"
+            ], capture_output=True, text=True, timeout=10)
+            if result.returncode == 0 and "torch_available" in result.stdout:
+                TORCH_AVAILABLE = True
+                print("✅ 检测到python_env中的torch库")
+            else:
+                print("警告: python_env中torch库未安装，本地LLM功能不可用")
+            
+            # 检查transformers是否可用
+            result = subprocess.run([
+                str(python_exe), "-c", "from transformers import AutoTokenizer, AutoModelForCausalLM, TextStreamer; print('transformers_available')"
+            ], capture_output=True, text=True, timeout=10)
+            if result.returncode == 0 and "transformers_available" in result.stdout:
+                TRANSFORMERS_AVAILABLE = True
+                print("✅ 检测到python_env中的transformers库")
+            else:
+                print("警告: python_env中transformers库未安装，本地LLM功能不可用")
+                
+        except Exception as e:
+            print(f"检查python_env库时出错: {e}")
+    else:
+        print("警告: python_env/python.exe不存在")
+else:
+    print("警告: python_env目录不存在")
 
-try:
-    import torch
-    TORCH_AVAILABLE = True
-except ImportError:
-    TORCH_AVAILABLE = False
-    print("警告: torch库未安装，本地LLM功能不可用")
-
-try:
-    from transformers import AutoTokenizer, AutoModelForCausalLM, TextStreamer
-    TRANSFORMERS_AVAILABLE = True
-except ImportError:
-    TRANSFORMERS_AVAILABLE = False
-    print("警告: transformers库未安装，本地LLM功能不可用")
+# 注意：由于DLL冲突，我们不能直接导入python_env中的torch和transformers
+# 而是通过subprocess调用python_env中的Python来执行相关操作
 
 from src.utils.ModelManager import model_manager
 
@@ -44,15 +66,40 @@ class LocalLLMEngine:
         self.model_name = None
         self.device = "cpu"  # 默认使用CPU
         self.is_loaded = False
+        self.python_exe = None
+        
+        # 设置python_env的Python可执行文件路径
+        if python_env_path.exists():
+            self.python_exe = python_env_path / "python.exe"
         
         # 检查torch是否可用
-        if TORCH_AVAILABLE:
+        if TORCH_AVAILABLE and self.python_exe:
             try:
-                self.device = "cuda" if torch.cuda.is_available() else "cpu"
-                print(f"使用独立Python环境中的torch，设备: {self.device}")
-                if torch.cuda.is_available():
-                    print(f"CUDA版本: {torch.version.cuda}")
-                    print(f"GPU数量: {torch.cuda.device_count()}")
+                # 通过subprocess检查CUDA可用性
+                result = subprocess.run([
+                    str(self.python_exe), "-c", 
+                    "import torch; print(f'cuda_available:{torch.cuda.is_available()}'); print(f'cuda_version:{torch.version.cuda if torch.cuda.is_available() else \"N/A\"}'); print(f'gpu_count:{torch.cuda.device_count() if torch.cuda.is_available() else 0}')"
+                ], capture_output=True, text=True, timeout=10)
+                
+                if result.returncode == 0:
+                    lines = result.stdout.strip().split('\n')
+                    for line in lines:
+                        if ':' in line:
+                            key, value = line.split(':', 1)
+                            if key == 'cuda_available':
+                                if value == 'True':
+                                    self.device = "cuda"
+                                    print(f"✅ 使用独立Python环境中的torch，设备: {self.device}")
+                                else:
+                                    self.device = "cpu"
+                                    print(f"✅ 使用独立Python环境中的torch，设备: {self.device}")
+                            elif key == 'cuda_version' and self.device == "cuda":
+                                print(f"CUDA版本: {value}")
+                            elif key == 'gpu_count' and self.device == "cuda":
+                                print(f"GPU数量: {value}")
+                else:
+                    print(f"检查torch设备时出错: {result.stderr}")
+                    self.device = "cpu"
             except Exception as e:
                 print(f"检查torch设备时出错: {e}")
                 self.device = "cpu"
