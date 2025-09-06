@@ -197,6 +197,6 @@ print(f"是否毕业: {is_graduated}, 类型: {type(is_graduated)}")
 
 # 你可以在底下的代码编辑器中，输入你的代码。
 
-![img.png](./assets/01-02/img.png)
+
 
 # 然后，点击按钮，交由AI评论
