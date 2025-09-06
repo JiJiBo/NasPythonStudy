@@ -9,7 +9,19 @@ import subprocess
 import shutil
 import platform
 import sys
+import time
 from src.utils.PythonEnvManager import python_env_manager
+
+# 缓存系统信息，避免重复检测
+_system_info_cache = {}
+_cache_timestamp = 0
+_cache_duration = 30  # 缓存30秒
+
+def clear_system_info_cache():
+    """清除系统信息缓存，强制重新检测"""
+    global _system_info_cache, _cache_timestamp
+    _system_info_cache.clear()
+    _cache_timestamp = 0
 
 def run_cmd(cmd):
     """运行命令并返回结果"""
@@ -27,6 +39,13 @@ def run_cmd(cmd):
 
 def detect_cuda_version():
     """检测CUDA版本"""
+    global _system_info_cache, _cache_timestamp
+    
+    # 检查缓存
+    current_time = time.time()
+    if 'cuda_version' in _system_info_cache and (current_time - _cache_timestamp) < _cache_duration:
+        return _system_info_cache['cuda_version']
+    
     nvidia_smi = shutil.which("nvidia-smi")
     if nvidia_smi:
         # 首先尝试获取版本信息
@@ -43,7 +62,11 @@ def detect_cuda_version():
                         import re
                         version_match = re.search(r'(\d+\.\d+)', version_part)
                         if version_match:
-                            return version_match.group(1)
+                            cuda_version = version_match.group(1)
+                            # 缓存结果
+                            _system_info_cache['cuda_version'] = cuda_version
+                            _cache_timestamp = current_time
+                            return cuda_version
         
         # 如果版本信息获取失败，尝试查询GPU信息
         try:
@@ -52,16 +75,33 @@ def detect_cuda_version():
                 # 取第一行的版本号
                 first_line = gpu_output.strip().split('\n')[0]
                 if first_line and first_line != "Not Supported":
-                    return first_line.strip()
+                    cuda_version = first_line.strip()
+                    # 缓存结果
+                    _system_info_cache['cuda_version'] = cuda_version
+                    _cache_timestamp = current_time
+                    return cuda_version
         except:
             pass
     
+    # 缓存None结果
+    _system_info_cache['cuda_version'] = None
+    _cache_timestamp = current_time
     return None
 
 def get_gpu_info():
     """获取GPU信息"""
+    global _system_info_cache, _cache_timestamp
+    
+    # 检查缓存
+    current_time = time.time()
+    if 'gpu_info' in _system_info_cache and (current_time - _cache_timestamp) < _cache_duration:
+        return _system_info_cache['gpu_info']
+    
     nvidia_smi = shutil.which("nvidia-smi")
     if not nvidia_smi:
+        # 缓存None结果
+        _system_info_cache['gpu_info'] = None
+        _cache_timestamp = current_time
         return None
     
     try:
@@ -75,17 +115,31 @@ def get_gpu_info():
                     gpu_name = parts[0].strip()
                     memory_mb = int(parts[1].strip())
                     memory_gb = memory_mb / 1024
-                    return {
+                    gpu_info = {
                         'name': gpu_name,
                         'memory_gb': memory_gb
                     }
+                    # 缓存结果
+                    _system_info_cache['gpu_info'] = gpu_info
+                    _cache_timestamp = current_time
+                    return gpu_info
     except:
         pass
     
+    # 缓存None结果
+    _system_info_cache['gpu_info'] = None
+    _cache_timestamp = current_time
     return None
 
 def get_torch_info():
     """获取PyTorch信息"""
+    global _system_info_cache, _cache_timestamp
+    
+    # 检查缓存
+    current_time = time.time()
+    if 'torch_info' in _system_info_cache and (current_time - _cache_timestamp) < _cache_duration:
+        return _system_info_cache['torch_info']
+    
     try:
         # 使用Python环境管理器获取torch信息
         env_info = python_env_manager.get_environment_info()
@@ -111,11 +165,20 @@ def get_torch_info():
                         elif key == 'gpu_count':
                             info['gpu_count'] = int(value)
                 
+                # 缓存结果
+                _system_info_cache['torch_info'] = info
+                _cache_timestamp = current_time
                 return info
         
+        # 缓存None结果
+        _system_info_cache['torch_info'] = None
+        _cache_timestamp = current_time
         return None
     except Exception as e:
         print(f"获取torch信息时出错: {e}")
+        # 缓存None结果
+        _system_info_cache['torch_info'] = None
+        _cache_timestamp = current_time
         return None
 
 def get_system_info():

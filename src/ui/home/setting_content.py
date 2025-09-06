@@ -113,13 +113,26 @@ class SettingContent(ft.Column):
 
     def _open_system_info_dialog(self, e):
         """打开系统信息对话框"""
-        # 获取系统信息
-        system_info = get_system_info()
-        formatted_info = format_system_info()
+        # 创建加载状态组件
+        loading_text = ft.Text("正在检测系统信息...", size=14, color=ft.Colors.BLUE)
+        loading_progress = ft.ProgressBar(width=400, visible=True)
+        loading_container = ft.Container(
+            content=ft.Column([
+                loading_text,
+                loading_progress
+            ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),
+            height=400,
+            width=500,
+            padding=15,
+            bgcolor=ft.Colors.GREY_50,
+            border_radius=8,
+            border=ft.border.all(1, ft.Colors.GREY_300),
+            alignment=ft.alignment.center
+        )
         
-        # 创建信息显示文本
+        # 创建信息显示文本（初始为空）
         info_text = ft.Text(
-            formatted_info,
+            "",
             size=12,
             selectable=True,
             font_family="Consolas, monospace"
@@ -139,7 +152,7 @@ class SettingContent(ft.Column):
         # 创建刷新按钮
         refresh_btn = ft.ElevatedButton(
             "刷新信息",
-            on_click=lambda e: self._refresh_system_info(info_text, info_container)
+            on_click=lambda e: self._refresh_system_info_with_loading(info_text, info_container, loading_container, loading_text, loading_progress)
         )
         
         # 创建关闭按钮
@@ -157,7 +170,7 @@ class SettingContent(ft.Column):
             content=ft.Column([
                 ft.Text("当前系统配置信息：", size=14, weight=ft.FontWeight.BOLD),
                 ft.Divider(),
-                info_container,
+                loading_container,  # 初始显示加载状态
                 button_row
             ], tight=True, scroll=ft.ScrollMode.AUTO),
             modal=True,
@@ -167,9 +180,65 @@ class SettingContent(ft.Column):
         self.p.dialog = self.system_info_dialog
         self.p.open(self.system_info_dialog)
         self.p.update()
+        
+        # 在后台线程中加载系统信息
+        threading.Thread(target=self._load_system_info_async, 
+                        args=(info_text, info_container, loading_container, loading_text, loading_progress), 
+                        daemon=True).start()
+
+    def _load_system_info_async(self, info_text, info_container, loading_container, loading_text, loading_progress):
+        """异步加载系统信息"""
+        try:
+            # 更新加载状态
+            def update_loading_status(message):
+                loading_text.value = message
+                self.p.update()
+            
+            self.p.run_thread(lambda: update_loading_status("正在检测CUDA版本..."))
+            
+            # 获取系统信息
+            from src.utils.SystemInfo import format_system_info
+            formatted_info = format_system_info()
+            
+            # 更新UI显示结果
+            def show_result():
+                info_text.value = formatted_info
+                # 隐藏加载状态，显示结果
+                loading_container.visible = False
+                info_container.visible = True
+                self.p.update()
+            
+            self.p.run_thread(show_result)
+            
+        except Exception as e:
+            # 显示错误信息
+            def show_error():
+                info_text.value = f"获取系统信息失败: {str(e)}"
+                loading_container.visible = False
+                info_container.visible = True
+                self.p.update()
+            
+            self.p.run_thread(show_error)
+
+    def _refresh_system_info_with_loading(self, info_text, info_container, loading_container, loading_text, loading_progress):
+        """带加载状态的刷新系统信息"""
+        # 显示加载状态
+        loading_container.visible = True
+        info_container.visible = False
+        loading_text.value = "正在刷新系统信息..."
+        self.p.update()
+        
+        # 清除缓存并重新加载
+        from src.utils.SystemInfo import clear_system_info_cache
+        clear_system_info_cache()
+        
+        # 在后台线程中重新加载
+        threading.Thread(target=self._load_system_info_async, 
+                        args=(info_text, info_container, loading_container, loading_text, loading_progress), 
+                        daemon=True).start()
 
     def _refresh_system_info(self, info_text, info_container):
-        """刷新系统信息"""
+        """刷新系统信息（保持向后兼容）"""
         try:
             # 重新获取系统信息
             formatted_info = format_system_info()

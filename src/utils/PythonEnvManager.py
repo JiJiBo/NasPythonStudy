@@ -281,7 +281,18 @@ class PythonEnvManager:
                 # 检查torch
                 if self.check_package_installed('torch'):
                     info['torch_installed'] = True
-                    info['torch_version'] = self.get_package_version('torch')
+                    
+                    # 获取完整的torch版本信息（包括CUDA版本）
+                    try:
+                        result = self.run_python_command([
+                            "-c", "import torch; print(torch.__version__)"
+                        ])
+                        if result.returncode == 0:
+                            info['torch_version'] = result.stdout.strip()
+                        else:
+                            info['torch_version'] = self.get_package_version('torch')
+                    except:
+                        info['torch_version'] = self.get_package_version('torch')
                     
                     # 检查CUDA可用性
                     try:
