@@ -15,6 +15,7 @@ dependencies = [
     "PyYAML",
     "cn2an",
     "openai",
+    "pyperclip",
 ]
 
 [tool.flet]

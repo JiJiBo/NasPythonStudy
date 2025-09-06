@@ -1,4 +1,5 @@
 import os
+import pyperclip
 
 import flet as ft
 import yaml
@@ -226,6 +227,49 @@ def study_page(study_dir, page: ft.Page, on_back=None):
         """AI代码解释"""
         Q = f"你好！请详细解释这段代码的执行过程和每行代码的作用，帮助我更好地理解。\n\n代码：\n{code_runner.get_run_result()}"
         chat_view.ask(Q)
+
+    def copy_code_to_clipboard(e):
+        """复制代码到剪贴板"""
+        try:
+            if code_runner and hasattr(code_runner, 'code_input'):
+                code_text = code_runner.code_input.value
+                if code_text and code_text.strip():
+                    pyperclip.copy(code_text)
+                    # 显示复制成功提示
+                    page.snack_bar = ft.SnackBar(
+                        ft.Text("✅ 代码已复制到剪贴板", color=ft.Colors.WHITE),
+                        bgcolor=ft.Colors.GREEN,
+                        duration=2000
+                    )
+                    page.snack_bar.open = True
+                    page.update()
+                else:
+                    # 显示无代码提示
+                    page.snack_bar = ft.SnackBar(
+                        ft.Text("⚠️ 没有可复制的代码", color=ft.Colors.WHITE),
+                        bgcolor=ft.Colors.ORANGE,
+                        duration=2000
+                    )
+                    page.snack_bar.open = True
+                    page.update()
+            else:
+                # 显示错误提示
+                page.snack_bar = ft.SnackBar(
+                    ft.Text("❌ 无法获取代码内容", color=ft.Colors.WHITE),
+                    bgcolor=ft.Colors.RED,
+                    duration=2000
+                )
+                page.snack_bar.open = True
+                page.update()
+        except Exception as ex:
+            # 显示异常提示
+            page.snack_bar = ft.SnackBar(
+                ft.Text(f"❌ 复制失败: {str(ex)}", color=ft.Colors.WHITE),
+                bgcolor=ft.Colors.RED,
+                duration=3000
+            )
+            page.snack_bar.open = True
+            page.update()
 
     def complete_study(e):
         """完成学习"""
@@ -541,8 +585,38 @@ def study_page(study_dir, page: ft.Page, on_back=None):
                 # 代码运行器（仅在isShowCode为True时显示）
                 ft.Container(height=20) if isShowCode else ft.Container(),
                 ft.Container(
-                    content=code_runner,
-                    padding=ft.padding.all(20),
+                    content=ft.Column([
+                        # 代码运行器标题栏
+                        ft.Container(
+                            content=ft.Row([
+                                ft.Text("💻 代码编辑器", 
+                                       size=16, 
+                                       weight=ft.FontWeight.BOLD, 
+                                       color=ft.Colors.BLUE),
+                                ft.Container(expand=True),  # 占位符，推动按钮到右边
+                                ft.ElevatedButton(
+                                    "📋 复制代码",
+                                    on_click=copy_code_to_clipboard,
+                                    bgcolor=ft.Colors.BLUE,
+                                    color=ft.Colors.WHITE,
+                                    icon=ft.Icons.COPY,
+                                    style=ft.ButtonStyle(
+                                        shape=ft.RoundedRectangleBorder(radius=6),
+                                        padding=ft.padding.symmetric(horizontal=12, vertical=8)
+                                    ),
+                                    height=36
+                                )
+                            ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+                            padding=ft.padding.symmetric(horizontal=0, vertical=8),
+                            border=ft.border.only(bottom=ft.BorderSide(1, ft.Colors.GREY_300))
+                        ),
+                        # 代码运行器内容
+                        ft.Container(
+                            content=code_runner,
+                            padding=ft.padding.all(20),
+                            bgcolor=ft.Colors.WHITE
+                        )
+                    ], spacing=0),
                     bgcolor=ft.Colors.WHITE,
                     border_radius=12,
                     border=ft.border.all(1, ft.Colors.GREY_300),
