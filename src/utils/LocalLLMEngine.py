@@ -13,45 +13,9 @@ import subprocess
 from typing import List, Dict, Any, Optional, Callable
 from pathlib import Path
 
-# 检查python_env中的torch和transformers
-python_env_path = Path(__file__).parent.parent.parent / "python_env"
-TORCH_AVAILABLE = False
-TRANSFORMERS_AVAILABLE = False
-
-if python_env_path.exists():
-    python_exe = python_env_path / "python.exe"
-    if python_exe.exists():
-        try:
-            import subprocess
-            # 检查torch是否可用
-            result = subprocess.run([
-                str(python_exe), "-c", "import torch; print('torch_available')"
-            ], capture_output=True, text=True, timeout=10)
-            if result.returncode == 0 and "torch_available" in result.stdout:
-                TORCH_AVAILABLE = True
-                print("✅ 检测到python_env中的torch库")
-            else:
-                print("警告: python_env中torch库未安装，本地LLM功能不可用")
-            
-            # 检查transformers是否可用
-            result = subprocess.run([
-                str(python_exe), "-c", "from transformers import AutoTokenizer, AutoModelForCausalLM, TextStreamer; print('transformers_available')"
-            ], capture_output=True, text=True, timeout=10)
-            if result.returncode == 0 and "transformers_available" in result.stdout:
-                TRANSFORMERS_AVAILABLE = True
-                print("✅ 检测到python_env中的transformers库")
-            else:
-                print("警告: python_env中transformers库未安装，本地LLM功能不可用")
-                
-        except Exception as e:
-            print(f"检查python_env库时出错: {e}")
-    else:
-        print("警告: python_env/python.exe不存在")
-else:
-    print("警告: python_env目录不存在")
-
 # 注意：由于DLL冲突，我们不能直接导入python_env中的torch和transformers
 # 而是通过subprocess调用python_env中的Python来执行相关操作
+# 库的可用性检查将在类初始化时进行
 
 from src.utils.ModelManager import model_manager
 
@@ -67,21 +31,28 @@ class LocalLLMEngine:
         self.device = "cpu"  # 默认使用CPU
         self.is_loaded = False
         self.python_exe = None
+        self.torch_available = False
+        self.transformers_available = False
         
         # 设置python_env的Python可执行文件路径
+        python_env_path = Path(__file__).parent.parent.parent / "python_env"
         if python_env_path.exists():
             self.python_exe = python_env_path / "python.exe"
         
+        # 检查torch和transformers是否可用
+        if self.python_exe:
+            self._check_libraries_availability()
+        
         # 检查torch是否可用
-        if TORCH_AVAILABLE and self.python_exe:
+        if self.torch_available and self.python_exe:
             try:
                 # 通过subprocess检查CUDA可用性
                 result = subprocess.run([
                     str(self.python_exe), "-c", 
                     "import torch; print(f'cuda_available:{torch.cuda.is_available()}'); print(f'cuda_version:{torch.version.cuda if torch.cuda.is_available() else \"N/A\"}'); print(f'gpu_count:{torch.cuda.device_count() if torch.cuda.is_available() else 0}')"
-                ], capture_output=True, text=True, timeout=10)
+                ], capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=30)
                 
-                if result.returncode == 0:
+                if result.returncode == 0 and result.stdout:
                     lines = result.stdout.strip().split('\n')
                     for line in lines:
                         if ':' in line:
@@ -105,14 +76,48 @@ class LocalLLMEngine:
                 self.device = "cpu"
         else:
             print("警告: torch不可用，将使用CPU模式")
+    
+    def _check_libraries_availability(self):
+        """检查torch和transformers库的可用性"""
+        try:
+            print("正在检查torch库可用性...")
+            # 检查torch是否可用 - 增加超时时间到30秒
+            result = subprocess.run([
+                str(self.python_exe), "-c", "import torch; print('torch_available')"
+            ], capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=30)
+            if result.returncode == 0 and result.stdout and "torch_available" in result.stdout:
+                self.torch_available = True
+                print("✅ 检测到python_env中的torch库")
+            else:
+                print("警告: python_env中torch库未安装，本地LLM功能不可用")
+            
+            if self.torch_available:
+                print("正在检查transformers库可用性...")
+                # 检查transformers是否可用
+                result = subprocess.run([
+                    str(self.python_exe), "-c", "from transformers import AutoTokenizer, AutoModelForCausalLM, TextStreamer; print('transformers_available')"
+                ], capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=30)
+                if result.returncode == 0 and result.stdout and "transformers_available" in result.stdout:
+                    self.transformers_available = True
+                    print("✅ 检测到python_env中的transformers库")
+                else:
+                    print("警告: python_env中transformers库未安装，本地LLM功能不可用")
+                
+        except subprocess.TimeoutExpired:
+            print("警告: 库检查超时，可能是首次导入torch需要较长时间")
+            # 即使超时，也假设库是可用的，让后续使用来验证
+            self.torch_available = True
+            self.transformers_available = True
+        except Exception as e:
+            print(f"检查python_env库时出错: {e}")
         
     def load_model(self, model_name: str) -> bool:
         """加载本地模型"""
-        if not TORCH_AVAILABLE:
+        if not self.torch_available:
             print("错误: torch库未安装，无法使用本地模型功能")
             return False
             
-        if not TRANSFORMERS_AVAILABLE:
+        if not self.transformers_available:
             print("错误: transformers库未安装，无法使用本地模型功能")
             return False
         
@@ -125,29 +130,61 @@ class LocalLLMEngine:
             print(f"正在加载模型: {model_name}")
             print(f"使用设备: {self.device}")
             
-            # 加载tokenizer
-            self.tokenizer = AutoTokenizer.from_pretrained(
-                str(model_path),
-                trust_remote_code=True
-            )
+            # 通过subprocess调用python_env中的Python来加载模型
+            python_env_path = Path(__file__).parent.parent.parent / "python_env"
+            python_exe = python_env_path / "python.exe"
+            if not python_exe.exists():
+                print("错误: python_env/python.exe不存在")
+                return False
             
-            # 加载模型
-            self.model = AutoModelForCausalLM.from_pretrained(
-                str(model_path),
-                dtype=torch.float16 if self.device == "cuda" else torch.float32,
-                device_map="auto" if self.device == "cuda" else None,
-                low_cpu_mem_usage=True,  # 减少内存消耗
-                trust_remote_code=True
-            )
+            # 创建模型加载脚本
+            load_script = f"""
+import sys
+import torch
+from transformers import AutoTokenizer, AutoModelForCausalLM
+import json
+
+model_path = r"{model_path}"
+device = "{self.device}"
+
+try:
+    # 加载tokenizer
+    tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
+    
+    # 加载模型
+    model = AutoModelForCausalLM.from_pretrained(
+        model_path,
+        dtype=torch.float16 if device == "cuda" else torch.float32,
+        device_map="auto" if device == "cuda" else None,
+        low_cpu_mem_usage=True,
+        trust_remote_code=True
+    )
+    
+    if device == "cpu":
+        model = model.to("cpu")
+    
+    print("MODEL_LOADED_SUCCESS")
+    print(f"模型 {model_path} 加载成功")
+    
+except Exception as e:
+    print(f"MODEL_LOAD_ERROR: {{e}}")
+    sys.exit(1)
+"""
             
-            if self.device == "cpu":
-                self.model = self.model.to(self.device)
+            # 执行模型加载
+            result = subprocess.run([
+                str(python_exe), "-c", load_script
+            ], capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=300)  # 5分钟超时
             
-            self.model_name = model_name
-            self.is_loaded = True
-            
-            print(f"模型 {model_name} 加载成功！")
-            return True
+            if result.returncode == 0 and result.stdout and "MODEL_LOADED_SUCCESS" in result.stdout:
+                self.model_name = model_name
+                self.is_loaded = True
+                print(f"✅ 模型 {model_name} 加载成功")
+                return True
+            else:
+                error_msg = result.stderr or result.stdout
+                print(f"模型加载失败: {error_msg}")
+                return False
             
         except Exception as e:
             error_msg = f"加载模型失败: {e}"
@@ -169,66 +206,64 @@ class LocalLLMEngine:
     
     def unload_model(self):
         """卸载模型释放内存"""
-        if self.model is not None:
-            del self.model
-            self.model = None
-        if self.tokenizer is not None:
-            del self.tokenizer
-            self.tokenizer = None
+        # 由于我们使用subprocess，模型在独立进程中，这里只需要重置状态
         self.is_loaded = False
         self.model_name = None
         
-        # 清理GPU缓存
-        if TORCH_AVAILABLE and torch.cuda.is_available():
-            torch.cuda.empty_cache()
+        # 清理GPU缓存（通过subprocess调用）
+        try:
+            python_env_path = Path(__file__).parent.parent.parent / "python_env"
+            python_exe = python_env_path / "python.exe"
+            if python_exe.exists():
+                subprocess.run([
+                    str(python_exe), "-c", 
+                    "import torch; torch.cuda.empty_cache() if torch.cuda.is_available() else None"
+                ], capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=10)
+        except Exception as e:
+            print(f"清理GPU缓存时出错: {e}")
     
-    def generate_response(self, messages: List[Dict[str, str]], max_length: int = 512, temperature: float = 0.7) -> str:
+    def generate_response(self, messages: List[Dict[str, str]], max_length: int = 2048, temperature: float = 0.7) -> str:
         """生成单次响应"""
         if not self.is_loaded:
             return "错误: 本地模型未加载"
         
         try:
-            # 构建对话格式
-            if self.model_name.startswith("qwen"):
-                # Qwen模型使用特殊格式
-                text = self._format_qwen_messages(messages)
+            # 通过subprocess调用python_env中的模型推理脚本
+            python_env_path = Path(__file__).parent.parent.parent / "python_env"
+            python_exe = python_env_path / "python.exe"
+            inference_script = python_env_path / "model_inference.py"
+            
+            if not python_exe.exists() or not inference_script.exists():
+                return "错误: 模型推理脚本不存在"
+            
+            # 获取模型路径
+            from src.utils.ModelManager import model_manager
+            model_path = model_manager.get_model_path(self.model_name)
+            if not model_path:
+                return "错误: 模型路径不存在"
+            
+            # 准备消息数据
+            messages_json = json.dumps(messages, ensure_ascii=False)
+            
+            # 执行推理
+            result = subprocess.run([
+                str(python_exe), str(inference_script), "generate",
+                str(model_path), messages_json, str(max_length), str(temperature), self.device
+            ], capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=120, bufsize=65536)
+            
+            if result.returncode == 0 and result.stdout:
+                output = result.stdout.strip()
+                if output.startswith("RESPONSE_SUCCESS: "):
+                    response = output[19:]  # 移除前缀 "RESPONSE_SUCCESS: "
+                    logger.info(f"AI原始输出: {repr(response)}")
+                    return response.strip()
+                elif output.startswith("RESPONSE_ERROR: "):
+                    return output[17:]  # 移除前缀 "RESPONSE_ERROR: "
+                else:
+                    return output
             else:
-                # 其他模型使用简单格式
-                text = self._format_simple_messages(messages)
-            
-            # 编码输入 - 使用更现代的方式
-            tokenized = self.tokenizer(
-                text, 
-                return_tensors="pt", 
-                truncation=True, 
-                max_length=2048,  # 设置合理的最大长度
-                padding=False
-            )
-            inputs = tokenized["input_ids"].to(self.device)
-            attention_mask = tokenized["attention_mask"].to(self.device)
-            
-            # 生成响应
-            with torch.no_grad():
-                # 计算可生成的新token数量，确保至少为1
-                input_length = inputs.shape[1]
-                available_tokens = max_length - input_length
-                max_new_tokens = max(min(available_tokens, 512), 1)  # 确保至少为1
-                
-                outputs = self.model.generate(
-                    inputs,
-                    attention_mask=attention_mask,
-                    max_new_tokens=max_new_tokens,
-                    temperature=temperature,
-                    do_sample=True,
-                    pad_token_id=self.tokenizer.eos_token_id,
-                    eos_token_id=self.tokenizer.eos_token_id
-                )
-            
-            # 解码响应
-            response = self.tokenizer.decode(outputs[0][inputs.shape[1]:], skip_special_tokens=True)
-            # 调试日志：打印AI的原始输出
-            logger.info(f"AI原始输出: {repr(response)}")
-            return response.strip()
+                error_msg = result.stderr if result.stderr else (result.stdout if result.stdout else "未知错误")
+                return f"推理失败: {error_msg}"
             
         except Exception as e:
             error_msg = f"生成响应时出错: {e}"
@@ -247,7 +282,7 @@ class LocalLLMEngine:
     def stream_response(self, messages: List[Dict[str, str]], callback: Callable[[str], None], 
                        error_callback: Optional[Callable[[str], None]] = None,
                        cancel_check: Optional[Callable[[], bool]] = None,
-                       max_length: int = 512, temperature: float = 0.7):
+                       max_length: int = 2048, temperature: float = 0.7):
         """流式生成响应"""
         if not self.is_loaded:
             if error_callback:
@@ -255,132 +290,57 @@ class LocalLLMEngine:
             return
         
         try:
-            # 构建对话格式
-            if self.model_name.startswith("qwen"):
-                text = self._format_qwen_messages(messages)
-            else:
-                text = self._format_simple_messages(messages)
+            # 通过subprocess调用python_env中的模型推理脚本进行流式推理
+            python_env_path = Path(__file__).parent.parent.parent / "python_env"
+            python_exe = python_env_path / "python.exe"
+            inference_script = python_env_path / "model_inference.py"
             
-            # 调试日志：打印格式化后的输入
-            logger.info(f"格式化后的输入文本: {repr(text)}")
+            if not python_exe.exists() or not inference_script.exists():
+                if error_callback:
+                    error_callback("错误: 模型推理脚本不存在")
+                return
             
-            # 编码输入 - 使用更现代的方式
-            tokenized = self.tokenizer(
-                text, 
-                return_tensors="pt", 
-                truncation=True, 
-                max_length=2048,  # 设置合理的最大长度
-                padding=False
-            )
-            inputs = tokenized["input_ids"].to(self.device)
-            attention_mask = tokenized["attention_mask"].to(self.device)
+            # 获取模型路径
+            from src.utils.ModelManager import model_manager
+            model_path = model_manager.get_model_path(self.model_name)
+            if not model_path:
+                if error_callback:
+                    error_callback("错误: 模型路径不存在")
+                return
             
-            # 创建流式生成器
-            class StreamCallback:
-                def __init__(self, callback, cancel_check, tokenizer):
-                    self.callback = callback
-                    self.cancel_check = cancel_check
-                    self.tokenizer = tokenizer
-                    self.buffer = ""
-                
-                def put(self, token):
-                    """TextStreamer 接口要求的方法"""
-                    if self.cancel_check and self.cancel_check():
-                        return False
-                    try:
-                        # 处理不同类型的token输入
-                        if hasattr(token, 'tolist'):  # 如果是Tensor
-                            token_list = token.tolist()
-                            if isinstance(token_list, list) and len(token_list) > 0:
-                                if isinstance(token_list[0], list):  # 如果是二维列表 [[1,2,3]]
-                                    token_list = token_list[0]
-                                # 解码整个序列
-                                token_text = self.tokenizer.decode(token_list, skip_special_tokens=True)
-                                # 调试日志：打印解码后的token文本
-                                logger.info(f"解码后的token文本: {repr(token_text)}")
-                            else:
-                                return True
-                        elif isinstance(token, (list, tuple)):  # 如果是列表或元组
-                            token_text = self.tokenizer.decode(token, skip_special_tokens=True)
-                            logger.info(f"解码后的token文本: {repr(token_text)}")
-                        elif hasattr(token, 'item'):  # 如果是单元素Tensor
-                            token_id = token.item()
-                            token_text = self.tokenizer.decode([int(token_id)], skip_special_tokens=True)
-                            logger.info(f"解码后的token文本: {repr(token_text)}")
-                        else:  # 如果是标量
-                            token_text = self.tokenizer.decode([int(token)], skip_special_tokens=True)
-                            logger.info(f"解码后的token文本: {repr(token_text)}")
-                        
-                        # 直接处理单个token的内容
-                        logger.info(f"当前token_text: {repr(token_text)}")
-                        
-                        # 将token内容添加到缓冲区
-                        self.buffer += token_text
-                        logger.info(f"缓冲区内容: {repr(self.buffer)}")
-                        
-                        # 简化的缓冲区输出策略 - 只在缓冲区较长时输出
-                        if len(self.buffer) > 50:  # 增加缓冲区长度限制
-                            # 调试日志：打印即将输出的缓冲区内容
-                            logger.info(f"输出缓冲区内容: {repr(self.buffer)}")
-                            self.callback(self.buffer)
-                            self.buffer = ""
-                        
-                        return True
-                    except Exception as e:
-                        # 如果处理失败，跳过这个token
-                        print(f"处理token时出错: {e}, token类型: {type(token)}, token形状: {getattr(token, 'shape', 'N/A')}")
-                        return True
-                
-                def end(self):
-                    """TextStreamer 接口要求的方法 - 生成结束时调用"""
-                    # 输出剩余的缓冲区内容
-                    if self.buffer.strip():
-                        # 调试日志：打印最终输出的缓冲区内容
-                        logger.info(f"最终输出缓冲区内容: {repr(self.buffer)}")
-                        self.callback(self.buffer)
-                        self.buffer = ""
-                
-                def __call__(self, token):
-                    """保持向后兼容性"""
-                    return self.put(token)
+            # 准备消息数据
+            messages_json = json.dumps(messages, ensure_ascii=False)
             
-            stream_callback = StreamCallback(callback, cancel_check, self.tokenizer)
+            # 执行流式推理
+            process = subprocess.Popen([
+                str(python_exe), str(inference_script), "generate",
+                str(model_path), messages_json, str(max_length), str(temperature), self.device
+            ], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding='utf-8', errors='replace', bufsize=1)
             
-            # 生成响应
-            with torch.no_grad():
-                # 计算可生成的新token数量，确保至少为1
-                input_length = inputs.shape[1]
-                available_tokens = max_length - input_length
-                max_new_tokens = max(min(available_tokens, 512), 1)  # 确保至少为1
-                
-                outputs = self.model.generate(
-                    inputs,
-                    attention_mask=attention_mask,
-                    max_new_tokens=max_new_tokens,
-                    temperature=temperature,
-                    do_sample=True,
-                    pad_token_id=self.tokenizer.eos_token_id,
-                    eos_token_id=self.tokenizer.eos_token_id,
-                    streamer=stream_callback
-                )
+            # 实时读取输出
+            while True:
+                if cancel_check and cancel_check():
+                    process.terminate()
+                    break
+                    
+                line = process.stdout.readline()
+                if not line:
+                    break
+                    
+                line = line.strip()
+                if line.startswith("STREAM_CHUNK: "):
+                    chunk = line[14:]  # 移除前缀
+                    callback(chunk)
+                elif line.startswith("RESPONSE_ERROR: "):
+                    if error_callback:
+                        error_callback(line[16:])
+                    break
             
-            # 处理剩余的缓冲区内容
-            if stream_callback.buffer.strip():
-                callback(stream_callback.buffer)
-                
+            process.wait()
+            
         except Exception as e:
             error_msg = f"流式生成时出错: {e}"
             logger.error(error_msg, exc_info=True)
-            
-            # 区分不同类型的错误
-            if "CUDA out of memory" in str(e):
-                error_msg += " (显存不足)"
-            elif "tokenizer" in str(e).lower():
-                error_msg += " (tokenizer解码错误)"
-            elif "generate" in str(e).lower():
-                error_msg += " (模型生成错误)"
-            elif "stream" in str(e).lower():
-                error_msg += " (流式处理错误)"
             
             if error_callback:
                 error_callback(error_msg)
@@ -451,12 +411,30 @@ class LocalLLMEngine:
             })
         
         # 添加显存使用信息
-        if TORCH_AVAILABLE and self.device == "cuda" and torch.cuda.is_available():
-            info.update({
-                "gpu_memory_allocated": torch.cuda.memory_allocated(),
-                "gpu_memory_reserved": torch.cuda.memory_reserved(),
-                "gpu_memory_max_allocated": torch.cuda.max_memory_allocated()
-            })
+        if self.torch_available and self.device == "cuda":
+            try:
+                # 通过subprocess获取GPU内存信息
+                python_env_path = Path(__file__).parent.parent.parent / "python_env"
+                python_exe = python_env_path / "python.exe"
+                if python_exe.exists():
+                    result = subprocess.run([
+                        str(python_exe), "-c", 
+                        "import torch; print(f'gpu_memory_allocated:{torch.cuda.memory_allocated()}'); print(f'gpu_memory_reserved:{torch.cuda.memory_reserved()}'); print(f'gpu_memory_max_allocated:{torch.cuda.max_memory_allocated()}')"
+                    ], capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=10)
+                    
+                    if result.returncode == 0 and result.stdout:
+                        lines = result.stdout.strip().split('\n')
+                        for line in lines:
+                            if ':' in line:
+                                key, value = line.split(':', 1)
+                                if key == 'gpu_memory_allocated':
+                                    info["gpu_memory_allocated"] = int(value)
+                                elif key == 'gpu_memory_reserved':
+                                    info["gpu_memory_reserved"] = int(value)
+                                elif key == 'gpu_memory_max_allocated':
+                                    info["gpu_memory_max_allocated"] = int(value)
+            except Exception as e:
+                logger.warning(f"获取GPU内存信息时出错: {e}")
         
         return info
 
