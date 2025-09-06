@@ -281,7 +281,9 @@ def llm_setting_page(page: ft.Page, on_back=None):
     local_model_dropdown = ft.Dropdown(
         label="选择本地模型",
         options=[
-            ft.dropdown.Option("qwen2.5-0.5b", "Qwen2.5-0.5B (1GB) - 中文对话模型"),
+            ft.dropdown.Option("qwen2.5-0.5b", "Qwen2.5-0.5B (1GB) - 轻量级中文对话模型"),
+            ft.dropdown.Option("qwen2.5-1.5b", "Qwen2.5-1.5B (3GB) - 中等规模中文对话模型"),
+            ft.dropdown.Option("qwen2.5-3b", "Qwen2.5-3B (6GB) - 高性能中文对话模型"),
             ft.dropdown.Option("tinyllama-1.1b", "TinyLlama-1.1B (2GB) - 英文对话模型"),
         ],
         width=380,

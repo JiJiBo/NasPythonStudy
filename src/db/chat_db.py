@@ -61,6 +61,12 @@ class ChatDB:
         c.execute("DELETE FROM chat WHERE chat_id=?", (chat_id,))
         self.conn.commit()
 
+    def get_all_chat_ids(self):
+        """获取所有chat_id"""
+        c = self.conn.cursor()
+        c.execute("SELECT DISTINCT chat_id FROM chat ORDER BY chat_id")
+        return [row[0] for row in c.fetchall()]
+    
     def get_recent_chat(self, chat_id, last_id=None, limit=100):
         """
         分页获取聊天记录

@@ -54,15 +54,18 @@ class AIRequestHandlerWithHistory:
         self.db.save_message(chat_id, "user", prompt)
         
         # 构建历史记录（不包含当前用户消息）
+        # 获取历史记录，然后排除刚保存的用户消息
         history = self.db.get_recent_chat(chat_id, limit=n)
         messages = []
-        for record in history[:-1]:  # 排除刚保存的用户消息
+        # 排除刚保存的用户消息，只处理历史记录
+        for record in history[:-1]:  # 排除最后一条（刚保存的用户消息）
             msg_id, role, content, *_ = record
             if role == "user":
                 messages.append({"role": "user", "content": content})
             elif role == "assistant":
                 messages.append({"role": "assistant", "content": content})
 
+        # 添加当前用户消息
         messages.append({"role": "user", "content": prompt})
         
         resp = self.handler.get_response_with_history(messages)
@@ -101,15 +104,18 @@ class AIRequestHandlerWithHistory:
                 error_callback(err)
 
         # 构建历史记录（不包含当前用户消息）
+        # 获取历史记录，然后排除刚保存的用户消息
         history = self.db.get_recent_chat(chat_id, limit=n)
         messages = []
-        for record in history[:-1]:  # 排除刚保存的用户消息
+        # 排除刚保存的用户消息，只处理历史记录
+        for record in history[:-1]:  # 排除最后一条（刚保存的用户消息）
             msg_id, role, content, *_ = record
             if role == "user":
                 messages.append({"role": "user", "content": content})
             elif role == "assistant":
                 messages.append({"role": "assistant", "content": content})
 
+        # 添加当前用户消息
         messages.append({"role": "user", "content": prompt})
 
         self.handler.stream_response_with_history(
@@ -130,6 +136,35 @@ class AIRequestHandlerWithHistory:
 
     def delete_chat_history(self, chat_id):
         self.db.delete_chat(chat_id)
+    
+    def clean_contaminated_messages(self, chat_id):
+        """清理被污染的消息（包含user/assistant标签的消息）"""
+        history = self.db.get_chat(chat_id)
+        cleaned_count = 0
+        
+        for record in history:
+            msg_id, role, content, timestamp = record
+            # 检查是否包含污染标签
+            if role == "assistant" and ("user\n" in content or "assistant\n" in content or "User:" in content or "Assistant:" in content):
+                # 删除这条被污染的消息
+                c = self.db.conn.cursor()
+                c.execute("DELETE FROM chat WHERE id=?", (msg_id,))
+                self.db.conn.commit()
+                cleaned_count += 1
+                print(f"清理被污染的消息: {content[:50]}...")
+        
+        if cleaned_count > 0:
+            print(f"已清理 {cleaned_count} 条被污染的消息")
+        return cleaned_count
+    
+    def force_clean_all_assistant_messages(self, chat_id):
+        """强制清理所有assistant消息（用于严重污染的情况）"""
+        c = self.db.conn.cursor()
+        c.execute("DELETE FROM chat WHERE chat_id=? AND role='assistant'", (chat_id,))
+        deleted_count = c.rowcount
+        self.db.conn.commit()
+        print(f"已强制清理 {deleted_count} 条assistant消息")
+        return deleted_count
 
     def get_recent_history(self, chat_id, last_id=None, limit=20):
         return self.db.get_recent_chat(chat_id, last_id=last_id, limit=limit)
