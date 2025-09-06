@@ -210,7 +210,6 @@ class LocalLLMEngine:
                     """TextStreamer 接口要求的方法"""
                     if self.cancel_check and self.cancel_check():
                         return False
-                    
                     try:
                         # 处理不同类型的token输入
                         if hasattr(token, 'tolist'):  # 如果是Tensor
@@ -221,45 +220,33 @@ class LocalLLMEngine:
                                 # 解码整个序列
                                 token_text = self.tokenizer.decode(token_list, skip_special_tokens=True)
                                 # 调试日志：打印解码后的token文本
-                                logger.debug(f"解码后的token文本: {repr(token_text)}")
+                                logger.info(f"解码后的token文本: {repr(token_text)}")
                             else:
                                 return True
                         elif isinstance(token, (list, tuple)):  # 如果是列表或元组
                             token_text = self.tokenizer.decode(token, skip_special_tokens=True)
+                            logger.info(f"解码后的token文本: {repr(token_text)}")
                         elif hasattr(token, 'item'):  # 如果是单元素Tensor
                             token_id = token.item()
                             token_text = self.tokenizer.decode([int(token_id)], skip_special_tokens=True)
+                            logger.info(f"解码后的token文本: {repr(token_text)}")
                         else:  # 如果是标量
                             token_text = self.tokenizer.decode([int(token)], skip_special_tokens=True)
+                            logger.info(f"解码后的token文本: {repr(token_text)}")
                         
-                        # 只处理新生成的部分（排除输入部分）
-                        if not hasattr(self, 'last_length'):
-                            self.last_length = 0
+                        # 直接处理单个token的内容
+                        logger.info(f"当前token_text: {repr(token_text)}")
                         
-                        # 如果token_text比之前长，说明有新内容生成
-                        if len(token_text) > self.last_length:
-                            new_text = token_text[self.last_length:]
-                            self.buffer += new_text
-                            self.last_length = len(token_text)
-                            
-                            # 更智能的缓冲区输出策略
-                            should_flush = False
-                            
-                            # 中文标点符号
-                            if any(punct in new_text for punct in ['。', '！', '？', '；', '：']):
-                                should_flush = True
-                            # 英文标点符号和空格
-                            elif any(punct in new_text for punct in ['.', '!', '?', ';', ':', '\n', ' ']):
-                                should_flush = True
-                            # 缓冲区长度限制
-                            elif len(self.buffer) > 20:
-                                should_flush = True
-                            
-                            if should_flush and self.buffer.strip():
-                                # 调试日志：打印即将输出的缓冲区内容
-                                logger.info(f"输出缓冲区内容: {repr(self.buffer)}")
-                                self.callback(self.buffer)
-                                self.buffer = ""
+                        # 将token内容添加到缓冲区
+                        self.buffer += token_text
+                        logger.info(f"缓冲区内容: {repr(self.buffer)}")
+                        
+                        # 简化的缓冲区输出策略 - 只在缓冲区较长时输出
+                        if len(self.buffer) > 50:  # 增加缓冲区长度限制
+                            # 调试日志：打印即将输出的缓冲区内容
+                            logger.info(f"输出缓冲区内容: {repr(self.buffer)}")
+                            self.callback(self.buffer)
+                            self.buffer = ""
                         
                         return True
                     except Exception as e:
@@ -323,37 +310,43 @@ class LocalLLMEngine:
     
     def _format_qwen_messages(self, messages: List[Dict[str, str]]) -> str:
         """格式化Qwen模型的消息"""
-        formatted = ""
-        for message in messages:
-            role = message["role"]
-            content = message["content"]
-            
-            if role == "user":
-                formatted += f"Human: {content}\n"
-            elif role == "assistant":
-                # 清理assistant消息中的污染标签
-                clean_content = content.replace("user\n", "").replace("assistant\n", "").replace("User:", "").replace("Assistant:", "").strip()
-                formatted += f"Assistant: {clean_content}\n"
+        # 只取最后一条用户消息
+        user_message = None
+        for message in reversed(messages):
+            if message["role"] == "user":
+                user_message = message["content"]
+                break
         
-        formatted += "Assistant: "
+        if user_message is None:
+            return ""
+        
+        # 清理用户消息中的污染标签
+        clean_content = user_message.replace("user\n", "").replace("assistant\n", "").replace("User:", "").replace("Assistant:", "").replace("Human:", "").replace("用户：", "").replace("助手：", "").replace("问：", "").replace("答：", "").strip()
+        
+        # 使用更自然的提示词格式
+        formatted = f"请回答以下问题：{clean_content}\n回答："
+        
         logger.debug(f"Qwen消息格式化结果: {repr(formatted)}")
         return formatted
     
     def _format_simple_messages(self, messages: List[Dict[str, str]]) -> str:
         """格式化简单模型的消息"""
-        formatted = ""
-        for message in messages:
-            role = message["role"]
-            content = message["content"]
-            
-            if role == "user":
-                formatted += f"Q: {content}\n"
-            elif role == "assistant":
-                # 清理assistant消息中的污染标签
-                clean_content = content.replace("user\n", "").replace("assistant\n", "").replace("User:", "").replace("Assistant:", "").strip()
-                formatted += f"A: {clean_content}\n"
+        # 只取最后一条用户消息
+        user_message = None
+        for message in reversed(messages):
+            if message["role"] == "user":
+                user_message = message["content"]
+                break
         
-        formatted += "A: "
+        if user_message is None:
+            return ""
+        
+        # 清理用户消息中的污染标签
+        clean_content = user_message.replace("user\n", "").replace("assistant\n", "").replace("User:", "").replace("Assistant:", "").replace("Human:", "").replace("用户：", "").replace("助手：", "").replace("问：", "").replace("答：", "").replace("Q:", "").replace("A:", "").strip()
+        
+        # 使用更自然的提示词格式
+        formatted = f"请回答以下问题：{clean_content}\n回答："
+        
         logger.debug(f"简单消息格式化结果: {repr(formatted)}")
         return formatted
     

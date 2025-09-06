@@ -29,7 +29,7 @@ class AIRequestHandlerWithHistory:
         return self._cancelled
 
     # ---------------- 工具方法 ----------------
-    def build_prompt_with_history(self, chat_id, new_prompt, n=5):
+    def build_prompt_with_history(self, chat_id, new_prompt, n=20):
         """
         组装前 n 条历史 + 当前输入，返回 messages 格式
         """
@@ -53,20 +53,8 @@ class AIRequestHandlerWithHistory:
         # 先保存用户消息
         self.db.save_message(chat_id, "user", prompt)
         
-        # 构建历史记录（不包含当前用户消息）
-        # 获取历史记录，然后排除刚保存的用户消息
-        history = self.db.get_recent_chat(chat_id, limit=n)
-        messages = []
-        # 排除刚保存的用户消息，只处理历史记录
-        for record in history[:-1]:  # 排除最后一条（刚保存的用户消息）
-            msg_id, role, content, *_ = record
-            if role == "user":
-                messages.append({"role": "user", "content": content})
-            elif role == "assistant":
-                messages.append({"role": "assistant", "content": content})
-
-        # 添加当前用户消息
-        messages.append({"role": "user", "content": prompt})
+        # 构建消息（包含历史记录作为记忆）
+        messages = self.build_prompt_with_history(chat_id, prompt, n)
         
         resp = self.handler.get_response_with_history(messages)
         
@@ -103,20 +91,8 @@ class AIRequestHandlerWithHistory:
             if not self.is_cancelled() and error_callback:
                 error_callback(err)
 
-        # 构建历史记录（不包含当前用户消息）
-        # 获取历史记录，然后排除刚保存的用户消息
-        history = self.db.get_recent_chat(chat_id, limit=n)
-        messages = []
-        # 排除刚保存的用户消息，只处理历史记录
-        for record in history[:-1]:  # 排除最后一条（刚保存的用户消息）
-            msg_id, role, content, *_ = record
-            if role == "user":
-                messages.append({"role": "user", "content": content})
-            elif role == "assistant":
-                messages.append({"role": "assistant", "content": content})
-
-        # 添加当前用户消息
-        messages.append({"role": "user", "content": prompt})
+        # 构建消息（包含历史记录作为记忆）
+        messages = self.build_prompt_with_history(chat_id, prompt, n)
 
         self.handler.stream_response_with_history(
             messages,

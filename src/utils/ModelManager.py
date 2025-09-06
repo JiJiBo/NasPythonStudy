@@ -36,49 +36,17 @@ class ModelManager:
         
         # 支持的模型配置
         self.supported_models = {
-            "qwen2.5-0.5b": {
-                "repo_id": "Qwen/Qwen2.5-0.5B-Instruct",
+            "qwen2.5-7b": {
+                "repo_id": "Qwen/Qwen2.5-7B-Instruct",
                 "files": [
                     "config.json",
                     "tokenizer.json",
                     "tokenizer_config.json",
                     "generation_config.json",
-                    "model.safetensors",
-                    "vocab.json",
-                    "merges.txt"
-                ],
-                "optional_files": [
-                    "special_tokens_map.json"
-                ],
-                "size_mb": 1024,  # 约1GB
-                "description": "Qwen2.5-0.5B-Instruct - 轻量级中文对话模型"
-            },
-            "qwen2.5-1.5b": {
-                "repo_id": "Qwen/Qwen2.5-1.5B-Instruct",
-                "files": [
-                    "config.json",
-                    "tokenizer.json",
-                    "tokenizer_config.json",
-                    "generation_config.json",
-                    "model.safetensors",
-                    "vocab.json",
-                    "merges.txt"
-                ],
-                "optional_files": [
-                    "special_tokens_map.json"
-                ],
-                "size_mb": 3072,  # 约3GB
-                "description": "Qwen2.5-1.5B-Instruct - 中等规模中文对话模型"
-            },
-            "qwen2.5-3b": {
-                "repo_id": "Qwen/Qwen2.5-3B-Instruct",
-                "files": [
-                    "config.json",
-                    "tokenizer.json",
-                    "tokenizer_config.json",
-                    "generation_config.json",
-                    "model-00001-of-00002.safetensors",
-                    "model-00002-of-00002.safetensors",
+                    "model-00001-of-00004.safetensors",
+                    "model-00002-of-00004.safetensors",
+                    "model-00003-of-00004.safetensors",
+                    "model-00004-of-00004.safetensors",
                     "model.safetensors.index.json",
                     "vocab.json",
                     "merges.txt"
@@ -86,8 +54,8 @@ class ModelManager:
                 "optional_files": [
                     "special_tokens_map.json"
                 ],
-                "size_mb": 6144,  # 约6GB
-                "description": "Qwen2.5-3B-Instruct - 高性能中文对话模型"
+                "size_mb": 14336,  # 约14GB
+                "description": "Qwen2.5-7B-Instruct - 顶级中文对话模型"
             },
             "tinyllama-1.1b": {
                 "repo_id": "TinyLlama/TinyLlama-1.1B-Chat-v1.0",

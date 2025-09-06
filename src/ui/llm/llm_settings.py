@@ -70,11 +70,7 @@ def llm_setting_page(page: ft.Page, on_back=None):
     def force_refresh_ui():
         """强制刷新UI"""
         try:
-            # 强制更新所有控件
-            model_status_text.update()
-            mirror_status_text.update()
-            download_button.update()
-            delete_button.update()
+            # 只更新页面，让Flet自动处理控件更新
             page.update()
             return True
         except Exception as e:
@@ -86,7 +82,7 @@ def llm_setting_page(page: ft.Page, on_back=None):
         """同步所有模型的下载状态"""
         from src.utils.DownloadStateManager import download_state_manager
         
-        for model_name in ["qwen2.5-0.5b", "tinyllama-1.1b"]:
+        for model_name in ["qwen2.5-7b", "tinyllama-1.1b"]:
             # 首先检查模型是否已下载
             if model_manager.is_model_downloaded(model_name):
                 set_download_state(model_name, DownloadState.COMPLETED)
@@ -171,7 +167,7 @@ def llm_setting_page(page: ft.Page, on_back=None):
         # 订阅状态监听器
         model_manager.subscribe_status(status_listener_callback)
         
-        for model_name in ["qwen2.5-0.5b", "tinyllama-1.1b"]:
+        for model_name in ["qwen2.5-7b", "tinyllama-1.1b"]:
             current_state = get_download_state(model_name)
             if current_state in [DownloadState.DOWNLOADING, DownloadState.PAUSED]:
                 model_manager.subscribe_progress(model_name, progress_listener_callback)
@@ -231,7 +227,7 @@ def llm_setting_page(page: ft.Page, on_back=None):
         stop_timer()
         
         # 取消所有进度监听器订阅
-        for model_name in ["qwen2.5-0.5b", "tinyllama-1.1b"]:
+        for model_name in ["qwen2.5-7b", "tinyllama-1.1b"]:
             model_manager.unsubscribe_progress(model_name, progress_listener_callback)
         
         # 取消状态监听器订阅
@@ -281,9 +277,7 @@ def llm_setting_page(page: ft.Page, on_back=None):
     local_model_dropdown = ft.Dropdown(
         label="选择本地模型",
         options=[
-            ft.dropdown.Option("qwen2.5-0.5b", "Qwen2.5-0.5B (1GB) - 轻量级中文对话模型"),
-            ft.dropdown.Option("qwen2.5-1.5b", "Qwen2.5-1.5B (3GB) - 中等规模中文对话模型"),
-            ft.dropdown.Option("qwen2.5-3b", "Qwen2.5-3B (6GB) - 高性能中文对话模型"),
+            ft.dropdown.Option("qwen2.5-7b", "Qwen2.5-7B (14GB) - 顶级中文对话模型"),
             ft.dropdown.Option("tinyllama-1.1b", "TinyLlama-1.1B (2GB) - 英文对话模型"),
         ],
         width=380,
@@ -516,7 +510,7 @@ def llm_setting_page(page: ft.Page, on_back=None):
                 addr_field.value = latest.get("addr") or "http://localhost:11434"
                 ollama_model_field.value = latest.get("model") or ""
             if model_dropdown.value == "local_model":
-                local_model_dropdown.value = latest.get("model") or "qwen2.5-0.5b"
+                local_model_dropdown.value = latest.get("model") or "qwen2.5-7b"
                 update_model_status()
             selected_config_id["id"] = latest.get("id")
         else:
@@ -537,7 +531,7 @@ def llm_setting_page(page: ft.Page, on_back=None):
         base_url_field.value = "https://api.openai.com/v1"
         addr_field.value = "http://localhost:11434"
         ollama_model_field.value = ""
-        local_model_dropdown.value = "qwen2.5-0.5b"
+        local_model_dropdown.value = "qwen2.5-7b"
         model_status_text.value = ""
         mirror_status_text.value = ""
         page.update()
@@ -676,7 +670,7 @@ def llm_setting_page(page: ft.Page, on_back=None):
         
         # 检查是否有正在下载的模型
         has_downloading = False
-        for model_name in ["qwen2.5-0.5b", "tinyllama-1.1b"]:
+        for model_name in ["qwen2.5-7b", "tinyllama-1.1b"]:
             if get_download_state(model_name) == DownloadState.DOWNLOADING:
                 has_downloading = True
                 break
