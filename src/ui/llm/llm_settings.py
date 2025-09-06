@@ -39,10 +39,6 @@ def llm_setting_page(page: ft.Page, on_back=None):
                 addr = current.get("addr") or ""
                 model_name = current.get("model") or ""
                 brief = f"{addr} | 模型: {model_name}"
-            elif provider == "local":
-                base_url = current.get("base_url") or ""
-                model_name = current.get("model") or ""
-                brief = f"{base_url} | 模型: {model_name}"
             elif provider == "local_model":
                 model_name = current.get("model") or ""
                 if model_manager.is_model_downloaded(model_name):
@@ -86,30 +82,27 @@ def llm_setting_page(page: ft.Page, on_back=None):
     model_dropdown = ft.Dropdown(
         label="选择模型类型",
         options=[
-            ft.dropdown.Option("deepseek"),
-            ft.dropdown.Option("OpenAI"),
-            ft.dropdown.Option("ollama"),
-            ft.dropdown.Option("local"),
-            ft.dropdown.Option("local_model"),
+            ft.dropdown.Option("deepseek", "DeepSeek"),
+            ft.dropdown.Option("OpenAI", "OpenAI"),
+            ft.dropdown.Option("ollama", "Ollama"),
+            ft.dropdown.Option("local_model", "本地模型"),
         ],
         value=latest_config.get("provider") if latest_config else "deepseek",
         width=380,
     )
 
     # 输入框
-    api_key_field = ft.TextField(label="API Key", width=380, password=True, can_reveal_password=True)
-    base_url_field = ft.TextField(label="Base URL", width=380, value="https://api.openai.com/v1")
+    api_key_field = ft.TextField(label="API密钥", width=380, password=True, can_reveal_password=True)
+    base_url_field = ft.TextField(label="基础URL", width=380, value="https://api.openai.com/v1")
     addr_field = ft.TextField(label="服务地址", width=380, value="http://localhost:11434")
-    ollama_model_field = ft.TextField(label="模型名", width=380, value="")
-    local_model_field = ft.TextField(label="模型名", width=380, value="")
-    local_base_url_field = ft.TextField(label="服务地址", width=380, value="http://localhost:8000")
+    ollama_model_field = ft.TextField(label="模型名称", width=380, value="")
     
     # 本地模型选择
     local_model_dropdown = ft.Dropdown(
         label="选择本地模型",
         options=[
-            ft.dropdown.Option("qwen2.5-0.5b", "Qwen2.5-0.5B (1GB)"),
-            ft.dropdown.Option("tinyllama-1.1b", "TinyLlama-1.1B (2GB)"),
+            ft.dropdown.Option("qwen2.5-0.5b", "Qwen2.5-0.5B (1GB) - 中文对话模型"),
+            ft.dropdown.Option("tinyllama-1.1b", "TinyLlama-1.1B (2GB) - 英文对话模型"),
         ],
         width=380,
     )
@@ -118,6 +111,7 @@ def llm_setting_page(page: ft.Page, on_back=None):
     download_button = ft.ElevatedButton("下载模型", width=120)
     delete_button = ft.ElevatedButton("删除模型", width=120)
     model_status_text = ft.Text("", size=12, color=ft.Colors.GREEN)
+    mirror_status_text = ft.Text("", size=10, color=ft.Colors.BLUE)
     
     config_container = ft.Column(spacing=8)
 
@@ -130,13 +124,12 @@ def llm_setting_page(page: ft.Page, on_back=None):
             config_container.controls.append(api_key_field)
         elif model_dropdown.value == "ollama":
             config_container.controls.extend([addr_field, ollama_model_field])
-        elif model_dropdown.value == "local":
-            config_container.controls.extend([local_base_url_field, local_model_field])
         elif model_dropdown.value == "local_model":
             config_container.controls.extend([
                 local_model_dropdown,
                 ft.Row([download_button, delete_button], spacing=10),
-                model_status_text
+                model_status_text,
+                mirror_status_text
             ])
 
     # 更新模型状态显示
@@ -160,12 +153,16 @@ def llm_setting_page(page: ft.Page, on_back=None):
                 else:
                     model_status_text.value = "未知模型"
                     model_status_text.color = ft.Colors.RED
+            
+            # 更新镜像状态
+            current_mirror = model_manager.get_current_mirror()
+            mirror_status_text.value = f"当前镜像: {current_mirror}"
             page.update()
 
     # 下载模型
     def download_model(e):
         if not local_model_dropdown.value:
-            page.snack_bar = ft.SnackBar(ft.Text("请先选择模型"))
+            page.snack_bar = ft.SnackBar(ft.Text("请先选择要下载的模型"))
             page.snack_bar.open = True
             page.update()
             return
@@ -179,25 +176,33 @@ def llm_setting_page(page: ft.Page, on_back=None):
         def progress_callback(filename, downloaded, total):
             if total > 0:
                 progress = (downloaded / total) * 100
-                model_status_text.value = f"下载 {filename}: {progress:.1f}%"
+                current_mirror = model_manager.get_current_mirror()
+                model_status_text.value = f"正在下载 {filename}: {progress:.1f}%"
+                mirror_status_text.value = f"当前镜像: {current_mirror}"
                 page.update()
         
         def download_thread():
             try:
                 success = model_manager.download_model(model_name, progress_callback)
                 if success:
-                    model_status_text.value = "✓ 模型下载完成!"
+                    model_status_text.value = "✓ 模型下载完成！"
                     model_status_text.color = ft.Colors.GREEN
                     download_button.text = "重新下载"
                     delete_button.disabled = False
+                    page.snack_bar = ft.SnackBar(ft.Text("模型下载成功！"))
+                    page.snack_bar.open = True
                 else:
                     model_status_text.value = "✗ 模型下载失败"
                     model_status_text.color = ft.Colors.RED
+                    page.snack_bar = ft.SnackBar(ft.Text("模型下载失败，请检查网络连接"))
+                    page.snack_bar.open = True
                 download_button.disabled = False
                 page.update()
             except Exception as ex:
                 model_status_text.value = f"✗ 下载出错: {str(ex)}"
                 model_status_text.color = ft.Colors.RED
+                page.snack_bar = ft.SnackBar(ft.Text(f"下载出错: {str(ex)}"))
+                page.snack_bar.open = True
                 download_button.disabled = False
                 page.update()
         
@@ -215,6 +220,8 @@ def llm_setting_page(page: ft.Page, on_back=None):
             model_status_text.color = ft.Colors.ORANGE
             download_button.text = "下载模型"
             delete_button.disabled = True
+            page.snack_bar = ft.SnackBar(ft.Text("模型已删除"))
+            page.snack_bar.open = True
             page.update()
 
     # 加载最新配置
@@ -228,9 +235,6 @@ def llm_setting_page(page: ft.Page, on_back=None):
             if model_dropdown.value == "ollama":
                 addr_field.value = latest.get("addr") or "http://localhost:11434"
                 ollama_model_field.value = latest.get("model") or ""
-            if model_dropdown.value == "local":
-                local_base_url_field.value = latest.get("base_url") or "http://localhost:8000"
-                local_model_field.value = latest.get("model") or ""
             if model_dropdown.value == "local_model":
                 local_model_dropdown.value = latest.get("model") or "qwen2.5-0.5b"
                 update_model_status()
@@ -245,10 +249,9 @@ def llm_setting_page(page: ft.Page, on_back=None):
         base_url_field.value = "https://api.openai.com/v1"
         addr_field.value = "http://localhost:11434"
         ollama_model_field.value = ""
-        local_base_url_field.value = "http://localhost:8000"
-        local_model_field.value = ""
         local_model_dropdown.value = "qwen2.5-0.5b"
         model_status_text.value = ""
+        mirror_status_text.value = ""
         page.update()
 
     # 保存新配置
@@ -257,18 +260,16 @@ def llm_setting_page(page: ft.Page, on_back=None):
         new_id = db.save_config(
             provider=selected,
             api_key=api_key_field.value if selected in ["OpenAI", "deepseek"] else None,
-            base_url=base_url_field.value if selected == "OpenAI" else (
-                local_base_url_field.value if selected == "local" else None),
+            base_url=base_url_field.value if selected == "OpenAI" else None,
             addr=addr_field.value if selected == "ollama" else None,
             model=ollama_model_field.value if selected == "ollama" else (
-                local_model_field.value if selected == "local" else (
                 local_model_dropdown.value if selected == "local_model" else (
-                "deepseek-chat" if selected == "deepseek" else None))),
+                "deepseek-chat" if selected == "deepseek" else None)),
         )
         db.set_current_config(new_id)
         selected_config_id["id"] = new_id
         refresh_current_config_display()
-        page.snack_bar = ft.SnackBar(ft.Text(f"保存为新配置（id={new_id}）"))
+        page.snack_bar = ft.SnackBar(ft.Text(f"配置已保存（ID: {new_id}）"))
         page.snack_bar.open = True
         page.update()
         ai_handler.refresh_config()
@@ -299,7 +300,7 @@ def llm_setting_page(page: ft.Page, on_back=None):
                     model_dropdown,
                     config_container,
                     ft.Row([
-                        ft.ElevatedButton("保存为新配置", on_click=save_new_config),
+                        ft.ElevatedButton("保存配置", on_click=save_new_config),
                         ft.ElevatedButton("清空输入", on_click=lambda e: clear_fields()),
                     ], spacing=10),
                 ])

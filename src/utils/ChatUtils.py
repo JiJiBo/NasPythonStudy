@@ -163,8 +163,6 @@ class AIRequestHandler:
             self.client = None
         elif self.provider.lower() == "ollama":
             self.client = None
-        elif self.provider.lower() == "local":
-            self.client = None
         elif self.provider.lower() == "local_model":
             self.client = None
         else:
@@ -201,14 +199,6 @@ class AIRequestHandler:
                 api_key=config.get("api_key"),
                 valid=True
             )
-        elif provider == "local":
-            return cls(
-                provider=config.get("provider"),
-                model=config.get("model"),
-                base_url=config.get("base_url"),
-                api_key=config.get("api_key"),
-                valid=True
-            )
         elif provider == "local_model":
             return cls(
                 provider=config.get("provider"),
@@ -241,8 +231,6 @@ class AIRequestHandler:
             self.base_url = config.get("base_url").rstrip("/") if config.get("base_url") else None
         elif provider == "ollama":
             self.base_url = config.get("addr").rstrip("/") if config.get("addr") else None
-        elif provider == "local":
-            self.base_url = config.get("base_url").rstrip("/") if config.get("base_url") else None
         elif provider == "local_model":
             self.base_url = None  # 本地模型不需要base_url
         self._init_client()
@@ -268,17 +256,6 @@ class AIRequestHandler:
                 headers = {"Authorization": f"Bearer {self.api_key}"}
                 payload = {"model": self.model, "messages": messages, "stream": False}
                 resp = requests.post(self.deepseek_url, headers=headers, json=payload)
-                resp.raise_for_status()
-                data = resp.json()
-                return data["choices"][0]["message"]["content"]
-
-            elif self.provider == "local":
-                # 本地LLM通常使用OpenAI兼容的API格式
-                headers = {}
-                if self.api_key:
-                    headers["Authorization"] = f"Bearer {self.api_key}"
-                payload = {"model": self.model, "messages": messages, "stream": False}
-                resp = requests.post(f"{self.base_url}/v1/chat/completions", headers=headers, json=payload)
                 resp.raise_for_status()
                 data = resp.json()
                 return data["choices"][0]["message"]["content"]
@@ -344,30 +321,6 @@ class AIRequestHandler:
                             delta = chunk["choices"][0]["delta"].get("content", "")
                             if delta:
                                 callback(delta)
-
-            elif self.provider == "local":
-                # 本地LLM流式响应，使用OpenAI兼容的API格式
-                headers = {}
-                if self.api_key:
-                    headers["Authorization"] = f"Bearer {self.api_key}"
-                payload = {"model": self.model, "messages": messages, "stream": True}
-                with requests.post(f"{self.base_url}/v1/chat/completions", headers=headers, json=payload, stream=True) as resp:
-                    resp.raise_for_status()
-                    for line in resp.iter_lines():
-                        # 检查是否需要取消
-                        if cancel_check and cancel_check():
-                            break
-                        if line and line.startswith(b"data: "):
-                            data = line[len(b"data: "):].decode("utf-8")
-                            if data == "[DONE]":
-                                break
-                            try:
-                                chunk = json.loads(data)
-                                delta = chunk["choices"][0]["delta"].get("content", "")
-                                if delta:
-                                    callback(delta)
-                            except json.JSONDecodeError:
-                                continue
 
             elif self.provider == "local_model":
                 # 使用本地模型引擎进行流式响应

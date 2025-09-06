@@ -31,12 +31,12 @@ class LocalLLMEngine:
     def load_model(self, model_name: str) -> bool:
         """加载本地模型"""
         if not TRANSFORMERS_AVAILABLE:
-            print("错误: transformers库未安装")
+            print("错误: transformers库未安装，无法使用本地模型功能")
             return False
         
         model_path = model_manager.get_model_path(model_name)
         if not model_path:
-            print(f"错误: 模型 {model_name} 未下载")
+            print(f"错误: 模型 {model_name} 未下载，请先下载模型")
             return False
         
         try:
@@ -63,7 +63,7 @@ class LocalLLMEngine:
             self.model_name = model_name
             self.is_loaded = True
             
-            print(f"模型 {model_name} 加载成功!")
+            print(f"模型 {model_name} 加载成功！")
             return True
             
         except Exception as e:
@@ -91,7 +91,7 @@ class LocalLLMEngine:
     def generate_response(self, messages: List[Dict[str, str]], max_length: int = 512, temperature: float = 0.7) -> str:
         """生成单次响应"""
         if not self.is_loaded:
-            return "错误: 模型未加载"
+            return "错误: 本地模型未加载"
         
         try:
             # 构建对话格式
@@ -130,7 +130,7 @@ class LocalLLMEngine:
         """流式生成响应"""
         if not self.is_loaded:
             if error_callback:
-                error_callback("错误: 模型未加载")
+                error_callback("错误: 本地模型未加载")
             return
         
         try:
