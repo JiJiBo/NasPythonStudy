@@ -146,7 +146,8 @@ class SettingContent(ft.Column):
             padding=15,
             bgcolor=ft.Colors.GREY_50,
             border_radius=8,
-            border=ft.border.all(1, ft.Colors.GREY_300)
+            border=ft.border.all(1, ft.Colors.GREY_300),
+            visible=False  # 初始隐藏，等待加载完成后显示
         )
         
         # 创建刷新按钮
@@ -171,6 +172,7 @@ class SettingContent(ft.Column):
                 ft.Text("当前系统配置信息：", size=14, weight=ft.FontWeight.BOLD),
                 ft.Divider(),
                 loading_container,  # 初始显示加载状态
+                info_container,     # 信息显示容器（初始隐藏）
                 button_row
             ], tight=True, scroll=ft.ScrollMode.AUTO),
             modal=True,
@@ -189,31 +191,44 @@ class SettingContent(ft.Column):
     def _load_system_info_async(self, info_text, info_container, loading_container, loading_text, loading_progress):
         """异步加载系统信息"""
         try:
+            print("开始异步加载系统信息...")
+            
             # 更新加载状态
             def update_loading_status(message):
+                print(f"更新加载状态: {message}")
                 loading_text.value = message
                 self.p.update()
             
             self.p.run_thread(lambda: update_loading_status("正在检测CUDA版本..."))
             
             # 获取系统信息
+            print("正在获取系统信息...")
             from src.utils.SystemInfo import format_system_info
             formatted_info = format_system_info()
+            print(f"系统信息获取完成，长度: {len(formatted_info)}")
             
             # 更新UI显示结果
             def show_result():
+                print("显示系统信息结果...")
                 info_text.value = formatted_info
                 # 隐藏加载状态，显示结果
                 loading_container.visible = False
                 info_container.visible = True
                 self.p.update()
+                print("系统信息显示完成")
             
             self.p.run_thread(show_result)
             
         except Exception as e:
+            print(f"异步加载系统信息出错: {e}")
+            import traceback
+            traceback.print_exc()
+            
             # 显示错误信息
             def show_error():
-                info_text.value = f"获取系统信息失败: {str(e)}"
+                error_msg = f"获取系统信息失败: {str(e)}"
+                print(f"显示错误信息: {error_msg}")
+                info_text.value = error_msg
                 loading_container.visible = False
                 info_container.visible = True
                 self.p.update()
