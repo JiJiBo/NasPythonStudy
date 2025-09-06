@@ -52,7 +52,7 @@ class LocalLLMEngine:
             # 加载模型
             self.model = AutoModelForCausalLM.from_pretrained(
                 str(model_path),
-                torch_dtype=torch.float16 if self.device == "cuda" else torch.float32,
+                dtype=torch.float16 if self.device == "cuda" else torch.float32,
                 device_map="auto" if self.device == "cuda" else None,
                 trust_remote_code=True
             )
@@ -105,10 +105,14 @@ class LocalLLMEngine:
             # 编码输入
             inputs = self.tokenizer.encode(text, return_tensors="pt").to(self.device)
             
+            # 创建 attention mask
+            attention_mask = torch.ones_like(inputs)
+            
             # 生成响应
             with torch.no_grad():
                 outputs = self.model.generate(
                     inputs,
+                    attention_mask=attention_mask,
                     max_length=max_length,
                     temperature=temperature,
                     do_sample=True,
@@ -143,30 +147,63 @@ class LocalLLMEngine:
             # 编码输入
             inputs = self.tokenizer.encode(text, return_tensors="pt").to(self.device)
             
+            # 创建 attention mask
+            attention_mask = torch.ones_like(inputs)
+            
             # 创建流式生成器
             class StreamCallback:
-                def __init__(self, callback, cancel_check):
+                def __init__(self, callback, cancel_check, tokenizer):
                     self.callback = callback
                     self.cancel_check = cancel_check
+                    self.tokenizer = tokenizer
                     self.buffer = ""
                 
-                def __call__(self, token):
+                def put(self, token):
+                    """TextStreamer 接口要求的方法"""
                     if self.cancel_check and self.cancel_check():
                         return False
                     
-                    self.buffer += token
-                    if token in ['。', '！', '？', '\n', '.', '!', '?'] or len(self.buffer) > 10:
-                        if self.buffer.strip():
-                            self.callback(self.buffer)
-                            self.buffer = ""
-                    return True
+                    try:
+                        # 处理不同类型的token输入
+                        if hasattr(token, 'item'):  # 如果是单元素Tensor
+                            token_id = token.item()
+                        elif hasattr(token, 'tolist'):  # 如果是多元素Tensor
+                            # 取第一个元素
+                            token_id = token.tolist()[0] if len(token) > 0 else token.tolist()
+                        elif isinstance(token, (list, tuple)):  # 如果是列表或元组
+                            token_id = token[0] if len(token) > 0 else token
+                        else:  # 如果是标量
+                            token_id = token
+                        
+                        # 确保token_id是整数
+                        if isinstance(token_id, (list, tuple)):
+                            token_id = token_id[0] if len(token_id) > 0 else 0
+                        
+                        # 解码token
+                        token_text = self.tokenizer.decode([int(token_id)], skip_special_tokens=True)
+                        
+                        self.buffer += token_text
+                        if token_text in ['。', '！', '？', '\n', '.', '!', '?'] or len(self.buffer) > 10:
+                            if self.buffer.strip():
+                                self.callback(self.buffer)
+                                self.buffer = ""
+                        return True
+                    except Exception as e:
+                        # 如果处理失败，跳过这个token
+                        print(f"处理token时出错: {e}, token类型: {type(token)}, token值: {token}")
+                        return True
+                
+                def __call__(self, token):
+                    """保持向后兼容性"""
+                    return self.put(token)
             
-            stream_callback = StreamCallback(callback, cancel_check)
+            stream_callback = StreamCallback(callback, cancel_check, self.tokenizer)
             
             # 生成响应
             with torch.no_grad():
                 outputs = self.model.generate(
                     inputs,
+                    attention_mask=attention_mask,
                     max_length=max_length,
                     temperature=temperature,
                     do_sample=True,

@@ -166,3 +166,5 @@ storage/
 /src/.idea
 /*.db
 /kv_store.json
+/assets/models/
+/download_state.json
