@@ -4,6 +4,7 @@ from src.str.APP_CONFIG import APP_NAME
 from src.ui.home.home_content import HomeContent
 from src.ui.home.mine_content import MineContent
 from src.ui.home.setting_content import SettingContent
+from src.ui.llm.llm_settings import llm_setting_page
 from src.ui.view.chat_view import ChatPullToRefresh
 
 
