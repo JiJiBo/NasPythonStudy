@@ -60,16 +60,26 @@ class PythonEnvManager:
     def _find_python_executable(self):
         """查找Python可执行文件"""
         # 优先级顺序：
-        # 1. 当前Python解释器
-        # 2. 系统PATH中的python
-        # 3. conda环境中的python
+        # 1. python_env中的Python（优先使用集成的Python环境）
+        # 2. 当前Python解释器
+        # 3. 系统PATH中的python
         
-        # 1. 使用当前Python解释器
+        # 1. 优先使用python_env中的Python
+        if platform.system().lower() == 'windows':
+            python_exe_name = "python.exe"
+        else:
+            python_exe_name = "python"
+        
+        python_env_exe = self.python_dir / python_exe_name
+        if python_env_exe.exists():
+            return str(python_env_exe)
+        
+        # 2. 使用当前Python解释器
         current_python = sys.executable
         if current_python and Path(current_python).exists():
             return current_python
         
-        # 2. 查找系统PATH中的python
+        # 3. 查找系统PATH中的python
         python_candidates = ["python", "python3", "python.exe", "python3.exe"]
         for candidate in python_candidates:
             python_path = shutil.which(candidate)

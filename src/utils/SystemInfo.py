@@ -123,15 +123,72 @@ def get_system_info():
     # 获取Python环境信息
     env_info = python_env_manager.get_environment_info()
     
+    # 获取虚拟环境信息
+    virtual_env_info = get_virtual_env_info()
+    
     info = {
         'system': platform.system(),
         'python_version': env_info.get('python_version', sys.version.split()[0]),
         'python_executable': env_info.get('python_executable', sys.executable),
+        'virtual_env': virtual_env_info,
         'cuda_version': detect_cuda_version(),
         'gpu_info': get_gpu_info(),
         'torch_info': get_torch_info()
     }
     return info
+
+def get_virtual_env_info():
+    """获取虚拟环境信息"""
+    try:
+        from pathlib import Path
+        
+        # 检查python_env目录
+        python_env_path = Path("python_env")
+        if not python_env_path.exists():
+            return {
+                'exists': False,
+                'path': None,
+                'python_exe': None,
+                'pip_exe': None,
+                'packages': []
+            }
+        
+        # 获取Python可执行文件路径
+        python_exe = python_env_path / "python.exe"
+        pip_exe = python_env_path / "Scripts" / "pip.exe"
+        
+        # 获取已安装的包
+        packages = []
+        if python_exe.exists():
+            try:
+                result = subprocess.run(
+                    [str(python_exe), "-m", "pip", "list", "--format=freeze"],
+                    capture_output=True,
+                    text=True,
+                    encoding='utf-8',
+                    errors='ignore'
+                )
+                if result.returncode == 0:
+                    for line in result.stdout.strip().split('\n'):
+                        if line and '==' in line:
+                            package_name = line.split('==')[0]
+                            if package_name.lower() in ['torch', 'torchvision', 'torchaudio', 'transformers', 'flet']:
+                                packages.append(line)
+            except:
+                pass
+        
+        return {
+            'exists': True,
+            'path': str(python_env_path.absolute()),
+            'python_exe': str(python_exe.absolute()) if python_exe.exists() else None,
+            'pip_exe': str(pip_exe.absolute()) if pip_exe.exists() else None,
+            'packages': packages
+        }
+    except Exception as e:
+        return {
+            'exists': False,
+            'error': str(e)
+        }
 
 def format_system_info():
     """格式化系统信息为可读文本"""
@@ -143,6 +200,30 @@ def format_system_info():
     lines.append(f"Python版本: {info['python_version']}")
     lines.append(f"Python路径: {info['python_executable']}")
     
+    # 虚拟环境信息
+    lines.append("\n=== 虚拟环境信息 ===")
+    virtual_env = info['virtual_env']
+    if virtual_env['exists']:
+        lines.append("✅ 虚拟环境: 已创建")
+        lines.append(f"虚拟环境路径: {virtual_env['path']}")
+        if virtual_env['python_exe']:
+            lines.append(f"Python可执行文件: {virtual_env['python_exe']}")
+        if virtual_env['pip_exe']:
+            lines.append(f"pip可执行文件: {virtual_env['pip_exe']}")
+        
+        if virtual_env['packages']:
+            lines.append("\n已安装的关键包:")
+            for package in virtual_env['packages']:
+                lines.append(f"  • {package}")
+        else:
+            lines.append("已安装的关键包: 无")
+    else:
+        lines.append("❌ 虚拟环境: 未创建")
+        if 'error' in virtual_env:
+            lines.append(f"错误: {virtual_env['error']}")
+    
+    # CUDA和GPU信息
+    lines.append("\n=== GPU信息 ===")
     if info['cuda_version']:
         lines.append(f"CUDA版本: {info['cuda_version']}")
     else:
@@ -154,6 +235,8 @@ def format_system_info():
     else:
         lines.append("GPU: 未检测到")
     
+    # PyTorch信息
+    lines.append("\n=== PyTorch信息 ===")
     if info['torch_info']:
         lines.append(f"PyTorch版本: {info['torch_info']['version']}")
         if info['torch_info']['cuda_available']:
