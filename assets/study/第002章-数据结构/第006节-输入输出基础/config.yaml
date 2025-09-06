@@ -1,0 +1,4 @@
+code: true # 是否开启代码编译程序
+codeReturn: null # 代码返回值
+codeExample: true # 是否有代码示例
+should: 正确使用输入输出函数 # 代码要求

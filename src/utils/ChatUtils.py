@@ -10,9 +10,22 @@ class AIRequestHandlerWithHistory:
     def __init__(self):
         self.handler = AIRequestHandler.from_current_config()
         self.db = ChatDB()
+        self._cancelled = False
 
     def refresh_config(self):
         self.handler.refresh_config()
+
+    def cancel_current_request(self):
+        """取消当前正在进行的请求"""
+        self._cancelled = True
+
+    def reset_cancel_flag(self):
+        """重置取消标志"""
+        self._cancelled = False
+
+    def is_cancelled(self):
+        """检查是否已取消"""
+        return self._cancelled
 
     # ---------------- 工具方法 ----------------
     def build_prompt_with_history(self, chat_id, new_prompt, n=5):
@@ -36,10 +49,24 @@ class AIRequestHandlerWithHistory:
         if not self.handler.valid:
             return None, "当前没有配置 LLM，请先到设置页面添加或选择配置。"
 
+        # 先保存用户消息
         self.db.save_message(chat_id, "user", prompt)
-        messages = self.build_prompt_with_history(chat_id, prompt, n=n)
+        
+        # 构建历史记录（不包含当前用户消息）
+        history = self.db.get_recent_chat(chat_id, limit=n)
+        messages = []
+        for record in history[:-1]:  # 排除刚保存的用户消息
+            msg_id, role, content, *_ = record
+            if role == "user":
+                messages.append({"role": "user", "content": content})
+            elif role == "assistant":
+                messages.append({"role": "assistant", "content": content})
 
+        messages.append({"role": "user", "content": prompt})
+        
         resp = self.handler.get_response_with_history(messages)
+        
+        # 保存AI响应
         self.db.save_message(chat_id, "assistant", resp)
         return chat_id, resp
 
@@ -50,28 +77,50 @@ class AIRequestHandlerWithHistory:
                 callback("当前没有配置 LLM，请先到设置页面添加或选择配置。")
             return None
 
+        # 重置取消标志，开始新请求
+        self.reset_cancel_flag()
+
+        # 先保存用户消息
         self.db.save_message(chat_id, "user", prompt)
+        
         full_response = ""
 
         def inner_callback(text):
             nonlocal full_response
+            # 检查是否已取消
+            if self.is_cancelled():
+                return
             full_response += text
             if callback:
                 callback(text)
 
         def inner_error_callback(err):
-            if error_callback:
+            # 检查是否已取消，如果是取消导致的错误则不处理
+            if not self.is_cancelled() and error_callback:
                 error_callback(err)
 
-        messages = self.build_prompt_with_history(chat_id, prompt, n=n)
+        # 构建历史记录（不包含当前用户消息）
+        history = self.db.get_recent_chat(chat_id, limit=n)
+        messages = []
+        for record in history[:-1]:  # 排除刚保存的用户消息
+            msg_id, role, content, *_ = record
+            if role == "user":
+                messages.append({"role": "user", "content": content})
+            elif role == "assistant":
+                messages.append({"role": "assistant", "content": content})
+
+        messages.append({"role": "user", "content": prompt})
 
         self.handler.stream_response_with_history(
             messages,
             callback=inner_callback,
-            error_callback=inner_error_callback
+            error_callback=inner_error_callback,
+            cancel_check=self.is_cancelled
         )
 
-        self.db.save_message(chat_id, "assistant", full_response)
+        # 如果没有被取消，保存AI响应
+        if not self.is_cancelled():
+            self.db.save_message(chat_id, "assistant", full_response)
         return chat_id
 
     # ---------------- 历史记录 ----------------
@@ -202,7 +251,7 @@ class AIRequestHandler:
             return f"错误: {str(e)}"
 
     # ---------------- 流式响应（带历史） ----------------
-    def stream_response_with_history(self, messages, callback, error_callback=None):
+    def stream_response_with_history(self, messages, callback, error_callback=None, cancel_check=None):
         try:
             if self.provider == "ollama":
                 url = f"{self.base_url}/api/chat"
@@ -210,6 +259,9 @@ class AIRequestHandler:
                 with requests.post(url, json=payload, stream=True) as resp:
                     resp.raise_for_status()
                     for line in resp.iter_lines():
+                        # 检查是否需要取消
+                        if cancel_check and cancel_check():
+                            break
                         if line:
                             chunk = json.loads(line.decode("utf-8"))
                             text = chunk.get("message", {}).get("content", "")
@@ -223,6 +275,9 @@ class AIRequestHandler:
                     stream=True
                 )
                 for chunk in stream:
+                    # 检查是否需要取消
+                    if cancel_check and cancel_check():
+                        break
                     delta = chunk.choices[0].delta
                     if delta and delta.content:
                         callback(delta.content)
@@ -233,6 +288,9 @@ class AIRequestHandler:
                 with requests.post(self.deepseek_url, headers=headers, json=payload, stream=True) as resp:
                     resp.raise_for_status()
                     for line in resp.iter_lines():
+                        # 检查是否需要取消
+                        if cancel_check and cancel_check():
+                            break
                         if line and line.startswith(b"data: "):
                             data = line[len(b"data: "):].decode("utf-8")
                             if data == "[DONE]":

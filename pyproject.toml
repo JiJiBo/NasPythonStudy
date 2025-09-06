@@ -12,6 +12,8 @@ dependencies = [
     "flet-webview==0.1.0",
     "requests",
     "keyboard",
+    "PyYAML",
+    "cn2an",
     "openai",
 ]
 
