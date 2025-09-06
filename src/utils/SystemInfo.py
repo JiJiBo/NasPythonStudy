@@ -9,6 +9,7 @@ import subprocess
 import shutil
 import platform
 import sys
+from src.utils.PythonEnvManager import python_env_manager
 
 def run_cmd(cmd):
     """运行命令并返回结果"""
@@ -86,22 +87,46 @@ def get_gpu_info():
 def get_torch_info():
     """获取PyTorch信息"""
     try:
-        import torch
-        return {
-            'version': torch.__version__,
-            'cuda_available': torch.cuda.is_available(),
-            'cuda_version': torch.version.cuda if torch.cuda.is_available() else None,
-            'gpu_count': torch.cuda.device_count() if torch.cuda.is_available() else 0
-        }
-    except ImportError:
+        # 使用Python环境管理器获取torch信息
+        env_info = python_env_manager.get_environment_info()
+        
+        if env_info['torch_installed']:
+            # 使用Python环境管理器运行torch检查
+            result = python_env_manager.run_python_command([
+                "-c", "import torch; print(f'version:{torch.__version__}'); print(f'cuda_available:{torch.cuda.is_available()}'); print(f'cuda_version:{torch.version.cuda if torch.cuda.is_available() else \"N/A\"}'); print(f'gpu_count:{torch.cuda.device_count() if torch.cuda.is_available() else 0}')"
+            ])
+            
+            if result.returncode == 0:
+                lines = result.stdout.strip().split('\n')
+                info = {}
+                for line in lines:
+                    if ':' in line:
+                        key, value = line.split(':', 1)
+                        if key == 'version':
+                            info['version'] = value
+                        elif key == 'cuda_available':
+                            info['cuda_available'] = value == 'True'
+                        elif key == 'cuda_version':
+                            info['cuda_version'] = value if value != 'N/A' else None
+                        elif key == 'gpu_count':
+                            info['gpu_count'] = int(value)
+                
+                return info
+        
+        return None
+    except Exception as e:
+        print(f"获取torch信息时出错: {e}")
         return None
 
 def get_system_info():
     """获取完整的系统信息"""
+    # 获取Python环境信息
+    env_info = python_env_manager.get_environment_info()
+    
     info = {
         'system': platform.system(),
-        'python_version': sys.version.split()[0],
-        'python_executable': sys.executable,
+        'python_version': env_info.get('python_version', sys.version.split()[0]),
+        'python_executable': env_info.get('python_executable', sys.executable),
         'cuda_version': detect_cuda_version(),
         'gpu_info': get_gpu_info(),
         'torch_info': get_torch_info()

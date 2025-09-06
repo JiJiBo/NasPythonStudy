@@ -16,8 +16,6 @@ dependencies = [
     "cn2an",
     "openai",
     "pyperclip",
-    "transformers",
-    "torch",
     "tqdm",
 ]
 

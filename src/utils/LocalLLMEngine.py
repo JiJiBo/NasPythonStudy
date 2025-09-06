@@ -7,10 +7,22 @@
 
 import os
 import json
-import torch
+import sys
 import logging
 from typing import List, Dict, Any, Optional, Callable
 from pathlib import Path
+
+# 添加python_env到Python路径
+python_env_path = Path(__file__).parent.parent.parent / "python_env"
+if python_env_path.exists():
+    sys.path.insert(0, str(python_env_path))
+
+try:
+    import torch
+    TORCH_AVAILABLE = True
+except ImportError:
+    TORCH_AVAILABLE = False
+    print("警告: torch库未安装，本地LLM功能不可用")
 
 try:
     from transformers import AutoTokenizer, AutoModelForCausalLM, TextStreamer
@@ -30,11 +42,29 @@ class LocalLLMEngine:
         self.model = None
         self.tokenizer = None
         self.model_name = None
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        self.device = "cpu"  # 默认使用CPU
         self.is_loaded = False
+        
+        # 检查torch是否可用
+        if TORCH_AVAILABLE:
+            try:
+                self.device = "cuda" if torch.cuda.is_available() else "cpu"
+                print(f"使用独立Python环境中的torch，设备: {self.device}")
+                if torch.cuda.is_available():
+                    print(f"CUDA版本: {torch.version.cuda}")
+                    print(f"GPU数量: {torch.cuda.device_count()}")
+            except Exception as e:
+                print(f"检查torch设备时出错: {e}")
+                self.device = "cpu"
+        else:
+            print("警告: torch不可用，将使用CPU模式")
         
     def load_model(self, model_name: str) -> bool:
         """加载本地模型"""
+        if not TORCH_AVAILABLE:
+            print("错误: torch库未安装，无法使用本地模型功能")
+            return False
+            
         if not TRANSFORMERS_AVAILABLE:
             print("错误: transformers库未安装，无法使用本地模型功能")
             return False
@@ -102,7 +132,7 @@ class LocalLLMEngine:
         self.model_name = None
         
         # 清理GPU缓存
-        if torch.cuda.is_available():
+        if TORCH_AVAILABLE and torch.cuda.is_available():
             torch.cuda.empty_cache()
     
     def generate_response(self, messages: List[Dict[str, str]], max_length: int = 512, temperature: float = 0.7) -> str:
@@ -374,7 +404,7 @@ class LocalLLMEngine:
             })
         
         # 添加显存使用信息
-        if self.device == "cuda" and torch.cuda.is_available():
+        if TORCH_AVAILABLE and self.device == "cuda" and torch.cuda.is_available():
             info.update({
                 "gpu_memory_allocated": torch.cuda.memory_allocated(),
                 "gpu_memory_reserved": torch.cuda.memory_reserved(),

@@ -408,14 +408,15 @@ class SettingContent(ft.Column):
             
             self._update_cuda_log("开始重新安装CUDA版本的torch...")
             self._update_cuda_log(f"脚本路径: {script_path}")
+            self._update_cuda_log("使用国内镜像加速下载...")
             
             # 设置环境变量确保UTF-8编码
             env = os.environ.copy()
             env['PYTHONIOENCODING'] = 'utf-8'
             
-            # 运行安装脚本，使用--reinstall-cuda参数
+            # 运行安装脚本，使用--reinstall-cuda和--use-mirror参数
             process = subprocess.Popen(
-                [sys.executable, script_path, "--reinstall-cuda"],
+                [sys.executable, script_path, "--reinstall-cuda", "--use-mirror"],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 text=True,
