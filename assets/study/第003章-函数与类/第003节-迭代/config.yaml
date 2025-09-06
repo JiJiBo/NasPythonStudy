@@ -1,4 +1,4 @@
 code: true # 是否开启代码编译程序
-codeReturn: 15 # 代码返回值
+codeReturn: true # 代码返回值
 codeExample: true # 是否有代码示例
-should: 正确编写和运行代码 # 代码要求
+should: 掌握迭代的基本用法和技巧 # 代码要求
