@@ -15,22 +15,22 @@ def study_page(study_dir, page: ft.Page, on_back=None):
     config_path = os.path.join(study_dir, "config.yaml")
     study_title = os.path.basename(study_dir)
     chat_id = study_dir
-    
+
     # 初始化学习进度数据库
     db = StudyProgressDB("study_progress.db")
-    
+
     # 提取章节和小节名称
     # 假设路径结构为: assets/study/第001章-开始/第001节-写在前面
     path_parts = study_dir.split(os.sep)
     chapter_name = None
     section_name = study_title  # 默认使用目录名作为小节名
-    
+
     # 查找章节名（包含"章"的目录）
     for part in reversed(path_parts):
         if "章" in part:
             chapter_name = part
             break
-    
+
     # 如果没有找到章节，尝试从父目录获取
     if not chapter_name:
         parent_dir = os.path.dirname(study_dir)
@@ -127,7 +127,7 @@ def study_page(study_dir, page: ft.Page, on_back=None):
     # 设置新 AppBar
     page.appbar = ft.AppBar(
         leading=ft.IconButton(
-            ft.Icons.ARROW_BACK, 
+            ft.Icons.ARROW_BACK,
             on_click=back_click,
             style=ft.ButtonStyle(
                 shape=ft.RoundedRectangleBorder(radius=8),
@@ -191,21 +191,37 @@ def study_page(study_dir, page: ft.Page, on_back=None):
     def ask_ai_evaluation(e):
         """AI代码评价"""
         if should is not None:
-            Q = f"你好，请帮我分析下代码，看看代码符合要求 {should} 吗？请给出中肯的评价!只要符合要求，可执行，按要求输出，并且没有偷工减料，就可以，不用太严格。最后给出评分，只要按要求输出了，没有错误，就给100分满分。" + str(code_runner.get_run_result())
+            Q = f"""
+            \n你好，请帮我分析下代码，看看代码是否符合以下要求：**{should}**  
+            \n ### 评价标准
+            \n1. **符合要求**：逻辑正确，满足题目要求。  
+            \n2. **可执行**：代码能够正常运行，没有报错。  
+            \n3. **按要求输出**：结果必须是程序的输出，而不是 `print` 打印。  
+            \n   - ⚠️ 注意：`print` 的内容只算调试打印，不算最终输出。  
+            \n   - ⚠️ 注意：允许使用 print，允许使用 print，允许使用 print 重要的事说三遍。  
+            \n4. **不偷工减料**：实现过程完整，没有敷衍。   
+            \n只要满足以上条件，就给出 **100 分满分**，否则根据问题扣分。  
+
+            \n ### 运行结果
+            \n```json
+            \n{code_runner.get_run_result()}
+            \n```
+            """
+
         else:
             Q = "你好，请帮我分析下代码，看看代码符合要求吗？请给出中肯的评价 " + str(code_runner.get_run_result())
         chat_view.ask(Q)
-    
+
     def ask_ai_help(e):
         """AI学习帮助"""
         Q = f"你好！我正在学习「{section_name}」，请帮我：\n\n1. 解释这个知识点的核心概念\n2. 提供一些实用的学习建议\n3. 推荐相关的练习题\n4. 解答我可能遇到的疑问\n\n请用通俗易懂的方式讲解，谢谢！"
         chat_view.ask(Q)
-    
+
     def ask_ai_optimize(e):
         """AI代码优化"""
         Q = f"你好！请帮我优化这段代码，让它更简洁、高效、易读。请提供优化后的代码和优化说明。\n\n原代码：\n{code_runner.get_run_result()}"
         chat_view.ask(Q)
-    
+
     def ask_ai_explain(e):
         """AI代码解释"""
         Q = f"你好！请详细解释这段代码的执行过程和每行代码的作用，帮助我更好地理解。\n\n代码：\n{code_runner.get_run_result()}"
@@ -220,7 +236,7 @@ def study_page(study_dir, page: ft.Page, on_back=None):
             page.snack_bar.open = True
             page.update()
             return
-        
+
         # 标记学习完成
         try:
             db.set_section_status(chapter_name, section_name, True)
@@ -231,15 +247,15 @@ def study_page(study_dir, page: ft.Page, on_back=None):
             page.snack_bar.open = True
             page.update()
             return
-        
+
         # 关闭确认对话框
         if hasattr(page, 'dialog') and page.dialog:
             page.close(page.dialog)
-        
+
         # 隐藏完成学习按钮
         complete_button.visible = False
         page.update()
-        
+
         # 显示完成提示
         page.snack_bar = ft.SnackBar(
             ft.Text(f"🎉 恭喜！{section_name} 学习完成！", color=ft.Colors.WHITE),
@@ -247,8 +263,8 @@ def study_page(study_dir, page: ft.Page, on_back=None):
         )
         page.snack_bar.open = True
         page.update()
-        
-            # 延迟1秒后退出页面
+
+        # 延迟1秒后退出页面
         def exit_page():
             import time
             time.sleep(1)
@@ -273,10 +289,10 @@ def study_page(study_dir, page: ft.Page, on_back=None):
             page.snack_bar.open = True
             page.update()
             return
-        
+
         # 检查是否已经完成
         is_completed = db.is_section_completed(chapter_name, section_name)
-        
+
         if is_completed:
             page.snack_bar = ft.SnackBar(
                 ft.Text("该小节已经完成学习了！", color=ft.Colors.WHITE),
@@ -285,11 +301,11 @@ def study_page(study_dir, page: ft.Page, on_back=None):
             page.snack_bar.open = True
             page.update()
             return
-        
+
         # 创建确认对话框
         def close_dialog(e):
             page.close(confirm_dialog)
-        
+
         confirm_dialog = ft.AlertDialog(
             modal=True,
             title=ft.Text("确认完成学习"),
@@ -297,7 +313,7 @@ def study_page(study_dir, page: ft.Page, on_back=None):
             actions=[
                 ft.TextButton("取消", on_click=close_dialog),
                 ft.ElevatedButton(
-                    "确认完成", 
+                    "确认完成",
                     on_click=complete_study,
                     bgcolor=ft.Colors.GREEN,
                     color=ft.Colors.WHITE
@@ -305,7 +321,7 @@ def study_page(study_dir, page: ft.Page, on_back=None):
             ],
             actions_alignment=ft.MainAxisAlignment.END,
         )
-        
+
         page.dialog = confirm_dialog
         page.open(confirm_dialog)
         page.update()
@@ -364,7 +380,7 @@ def study_page(study_dir, page: ft.Page, on_back=None):
                 )
             ], alignment=ft.MainAxisAlignment.CENTER, spacing=15)
         ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=0)
-        
+
         ask_button = ai_buttons
         code_alert = ft.Markdown(
             f"""
@@ -429,7 +445,7 @@ def study_page(study_dir, page: ft.Page, on_back=None):
                 )
             ], alignment=ft.MainAxisAlignment.CENTER, spacing=15)
         ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=0)
-        
+
         ask_button = ai_buttons
     else:
         # 没有代码时的AI按钮（只有学习帮助）
@@ -446,12 +462,12 @@ def study_page(study_dir, page: ft.Page, on_back=None):
                 )
             )
         ], alignment=ft.MainAxisAlignment.CENTER, spacing=10)
-        
+
         ask_button = ai_buttons
-    
+
     # 检查当前小节是否已完成
     is_section_completed = db.is_section_completed(chapter_name, section_name) if chapter_name else False
-    
+
     # 根据完成状态创建不同的按钮
     if is_section_completed:
         # 已完成状态 - 显示完成标识
@@ -511,7 +527,7 @@ def study_page(study_dir, page: ft.Page, on_back=None):
                         offset=ft.Offset(0, 2)
                     )
                 ),
-                
+
                 # 代码区域（仅在isShowCode为True时显示）
                 ft.Container(height=20) if isShowCode else ft.Container(),
                 ft.Container(
@@ -521,7 +537,7 @@ def study_page(study_dir, page: ft.Page, on_back=None):
                     border_radius=12,
                     border=ft.border.all(1, ft.Colors.GREY_300)
                 ) if code_alert else ft.Container(),
-                
+
                 # 代码运行器（仅在isShowCode为True时显示）
                 ft.Container(height=20) if isShowCode else ft.Container(),
                 ft.Container(
@@ -537,24 +553,24 @@ def study_page(study_dir, page: ft.Page, on_back=None):
                         offset=ft.Offset(0, 1)
                     )
                 ) if code_runner else ft.Container(),
-                
+
                 ft.Container(height=20),
-                
+
                 # AI功能按钮区域
                 ft.Container(
                     content=ft.Column([
-                        ft.Text("🤖 AI智能助手", 
-                               size=18, 
-                               weight=ft.FontWeight.BOLD, 
-                               color=ft.Colors.BLUE,
-                               text_align=ft.TextAlign.CENTER),
+                        ft.Text("🤖 AI智能助手",
+                                size=18,
+                                weight=ft.FontWeight.BOLD,
+                                color=ft.Colors.BLUE,
+                                text_align=ft.TextAlign.CENTER),
                         ft.Container(height=10),
                         ask_button,
                         ft.Container(height=5),
-                        ft.Text("点击按钮获取AI帮助，提升学习效果", 
-                               size=12, 
-                               color=ft.Colors.GREY_600,
-                               text_align=ft.TextAlign.CENTER)
+                        ft.Text("点击按钮获取AI帮助，提升学习效果",
+                                size=12,
+                                color=ft.Colors.GREY_600,
+                                text_align=ft.TextAlign.CENTER)
                     ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),
                     alignment=ft.alignment.center,
                     padding=ft.padding.all(20),
@@ -562,9 +578,9 @@ def study_page(study_dir, page: ft.Page, on_back=None):
                     border_radius=12,
                     border=ft.border.all(1, ft.Colors.BLUE_200)
                 ),
-                
+
                 ft.Container(height=20),
-                
+
                 # 完成学习按钮区域
                 ft.Container(
                     content=complete_button,
@@ -593,7 +609,6 @@ def study_page(study_dir, page: ft.Page, on_back=None):
 
     # -------- 新增：左右可拖动分割 --------
 
-
     def update_width(e: ft.DragUpdateEvent):
         nonlocal left_width
         left_width = max(300, int(left_width + e.delta_x))
@@ -617,6 +632,6 @@ def study_page(study_dir, page: ft.Page, on_back=None):
 
     # 设置页面背景色
     page.bgcolor = ft.Colors.GREY_100
-    
+
     page.add(layout)
     page.update()

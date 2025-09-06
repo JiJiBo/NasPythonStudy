@@ -117,5 +117,5 @@ class CodeRunner(ft.Column):
                 "错误信息": error_text.strip(),
                 "代码": code,
                 "执行输出": return_value,
-                "期望输出": "",
+                "期望输出": "None 或者 空字符都可以",
             }
