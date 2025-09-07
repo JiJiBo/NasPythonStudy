@@ -48,7 +48,7 @@ class SettingContent(ft.Column):
             ft.ListTile(
                 leading=ft.Icon(ft.Icons.BRANDING_WATERMARK, size=30),
                 title=ft.Text("大模型设置", weight=ft.FontWeight.BOLD),
-                subtitle=ft.Text("配置OpenAI、DeepSeek、Ollama等LLM服务", size=12, color=ft.Colors.GREY),
+                subtitle=ft.Text("配置DeepSeek、Ollama的LLM服务", size=12, color=ft.Colors.GREY),
                 on_click=lambda e: llm_setting_page(self.p, on_back=self.on_back),
             ),
             # 聊天记录历史条数设置

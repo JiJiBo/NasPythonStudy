@@ -75,7 +75,7 @@ def llm_setting_page(page: ft.Page, on_back=None):
         label="选择模型类型",
         options=[
             ft.dropdown.Option("deepseek"),
-            ft.dropdown.Option("OpenAI"),
+            # ft.dropdown.Option("OpenAI"),
             ft.dropdown.Option("ollama"),
         ],
         value=latest_config.get("provider") if latest_config else "deepseek",
