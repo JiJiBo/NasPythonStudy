@@ -58,13 +58,13 @@ class SettingContent(ft.Column):
                 subtitle=ft.Text("聊天会加载几条历史记录，当作记忆？", size=12, color=ft.Colors.GREY),
                 on_click=self._open_history_setting,
             ),
-            # 应用更新
-            ft.ListTile(
-                leading=ft.Icon(ft.Icons.UPDATE, size=30),
-                title=ft.Text("应用更新", weight=ft.FontWeight.BOLD),
-                subtitle=ft.Text("检查并更新应用版本", size=12, color=ft.Colors.GREY),
-                on_click=self._open_update_manager,
-            ),
+            # # 应用更新
+            # ft.ListTile(
+            #     leading=ft.Icon(ft.Icons.UPDATE, size=30),
+            #     title=ft.Text("应用更新", weight=ft.FontWeight.BOLD),
+            #     subtitle=ft.Text("检查并更新应用版本", size=12, color=ft.Colors.GREY),
+            #     on_click=self._open_update_manager,
+            # ),
             # # 系统信息
             # ft.ListTile(
             #     leading=ft.Icon(ft.Icons.INFO, size=30),
