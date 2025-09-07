@@ -321,21 +321,32 @@ class SettingContent(ft.Column):
                         
                         print(f"🔄 同步状态: {model_name} - {status.status} - {status.progress:.1f}%")
                     else:
-                        # 没有下载状态，设置为默认状态
-                        print(f"模型 {model_name} 没有下载状态，设置为默认状态")
+                        # 没有下载状态，检查是否已安装
+                        print(f"模型 {model_name} 没有下载状态，检查安装状态")
                         if progress_bar and status_text and button:
                             progress_bar.visible = False
                             progress_bar.value = 0
-                            status_text.value = "未下载"
-                            status_text.color = ft.Colors.GREY
-                            button.text = "下载"
-                            button.disabled = False
+                            
+                            # 检查模型是否已安装
+                            from src.utils.LocalModelManager import local_model_manager
+                            is_installed = local_model_manager.is_model_installed(model_name)
+                            
+                            if is_installed:
+                                status_text.value = "✓ 已下载"
+                                status_text.color = ft.Colors.GREEN
+                                button.text = "已下载"
+                                button.disabled = True
+                            else:
+                                status_text.value = "未下载"
+                                status_text.color = ft.Colors.GREY
+                                button.text = "下载"
+                                button.disabled = False
                             
                             progress_bar.update()
                             status_text.update()
                             button.update()
                             
-                            print(f"🔄 设置默认状态: {model_name}")
+                            print(f"🔄 设置状态: {model_name} - {'已下载' if is_installed else '未下载'}")
                 except Exception as e:
                     print(f"❌ 同步状态错误 {model_name}: {e}")
             
@@ -386,10 +397,11 @@ class SettingContent(ft.Column):
                     button_text = "已加载"
                     button_disabled = True
                 elif is_installed:
-                    status_text = "✓ 已安装"
-                    button_text = "加载"
+                    status_text = "✓ 已下载"
+                    button_text = "已下载"
+                    button_disabled = True
                 else:
-                    status_text = "未安装"
+                    status_text = "未下载"
                 
                 # 简化模型名称显示
                 display_name = model_name.replace("qwen2.5-coder-1.5b-", "Qwen-")
@@ -526,6 +538,16 @@ class SettingContent(ft.Column):
     def _handle_model_action(self, model_name, is_installed, is_current, progress_bar=None, status_text=None, button=None):
         """处理模型操作（下载或加载）"""
         from src.utils.LocalModelManager import local_model_manager
+        
+        # 如果模型已下载，不允许重复下载
+        if is_installed:
+            self.p.snack_bar = ft.SnackBar(
+                content=ft.Text(f"模型 {model_name} 已下载，无需重复下载"),
+                bgcolor=ft.Colors.ORANGE
+            )
+            self.p.snack_bar.open = True
+            self.p.update()
+            return
         
         # 检查当前下载状态
         download_status = download_manager.get_download_status(model_name)

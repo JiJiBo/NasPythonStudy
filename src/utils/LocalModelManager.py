@@ -16,9 +16,11 @@ from collections import defaultdict
 try:
     from llama_cpp import Llama
     LLAMA_CPP_AVAILABLE = True
-except ImportError:
+    print("llama-cpp-python 已安装")
+except ImportError as e:
     LLAMA_CPP_AVAILABLE = False
     Llama = None
+    print(f"llama-cpp-python 未安装: {e}")
 
 try:
     import flet as ft
@@ -121,38 +123,38 @@ class LocalModelManager:
     
     # 预定义的模型列表 - 多个镜像源
     AVAILABLE_MODELS = {
-        "qwen2.5-coder-1.5b-q4_k_m": ModelInfo(
-            name="qwen2.5-coder-1.5b-q4_k_m",
-            size=986 * 1024 * 1024,  # ~986MB
-            url="https://huggingface.co/Qwen/Qwen2.5-Coder-1.5B-Instruct-GGUF/resolve/main/qwen2.5-coder-1.5b-instruct-q4_k_m.gguf",
+        "qwen2.5-coder-7b-q4_k_m": ModelInfo(
+            name="qwen2.5-coder-7b-q4_k_m",
+            size=4200 * 1024 * 1024,  # ~4.2GB
+            url="https://huggingface.co/Qwen/Qwen2.5-Coder-7B-Instruct-GGUF/resolve/main/qwen2.5-coder-7b-instruct-q4_k_m.gguf",
             version="2025-01-01",
-            description="最轻量模型，CPU快速响应，适合入门用户"
+            description="7B模型轻量版，更好的代码生成能力"
         ),
-        "qwen2.5-coder-1.5b-q5_k_m": ModelInfo(
-            name="qwen2.5-coder-1.5b-q5_k_m", 
-            size=1100 * 1024 * 1024,  # ~1.1GB
-            url="https://huggingface.co/Qwen/Qwen2.5-Coder-1.5B-Instruct-GGUF/resolve/main/qwen2.5-coder-1.5b-instruct-q5_k_m.gguf",
+        "qwen2.5-coder-7b-q5_k_m": ModelInfo(
+            name="qwen2.5-coder-7b-q5_k_m", 
+            size=5200 * 1024 * 1024,  # ~5.2GB
+            url="https://huggingface.co/Qwen/Qwen2.5-Coder-7B-Instruct-GGUF/resolve/main/qwen2.5-coder-7b-instruct-q5_k_m.gguf",
             version="2025-01-01",
-            description="默认推荐模型，平衡性能和精度"
+            description="7B模型默认版，高质量代码生成，推荐使用"
         ),
-        "qwen2.5-coder-1.5b-q8_0": ModelInfo(
-            name="qwen2.5-coder-1.5b-q8_0",
-            size=1650 * 1024 * 1024,  # ~1.65GB
-            url="https://huggingface.co/Qwen/Qwen2.5-Coder-1.5B-Instruct-GGUF/resolve/main/qwen2.5-coder-1.5b-instruct-q8_0.gguf",
+        "qwen2.5-coder-7b-q8_0": ModelInfo(
+            name="qwen2.5-coder-7b-q8_0",
+            size=7800 * 1024 * 1024,  # ~7.8GB
+            url="https://huggingface.co/Qwen/Qwen2.5-Coder-7B-Instruct-GGUF/resolve/main/qwen2.5-coder-7b-instruct-q8_0.gguf",
             version="2025-01-01", 
-            description="高精度模型，适合高端用户"
+            description="7B模型高精度版，最佳代码生成能力"
         )
     }
     
-    # 镜像源列表
+    # 镜像源列表 - 支持7B模型
     MIRROR_SOURCES = {
-        "huggingface": "https://huggingface.co/Qwen/Qwen2.5-Coder-1.5B-Instruct-GGUF/resolve/main/",
-        "hf-mirror": "https://hf-mirror.com/Qwen/Qwen2.5-Coder-1.5B-Instruct-GGUF/resolve/main/",
-        "modelscope-direct": "https://modelscope.oss-cn-beijing.aliyuncs.com/models/qwen/Qwen2.5-Coder-1.5B-Instruct-GGUF/",
-        "modelscope": "https://www.modelscope.cn/api/v1/models/qwen/Qwen2.5-Coder-1.5B-Instruct-GGUF/repo?Revision=master&FilePath=",
-        "huggingface-mirror": "https://huggingface.co.uk/Qwen/Qwen2.5-Coder-1.5B-Instruct-GGUF/resolve/main/",
-        "hf-mirror-cn": "https://hf-mirror.com/Qwen/Qwen2.5-Coder-1.5B-Instruct-GGUF/resolve/main/",
-        "modelscope-cdn": "https://cdn.modelscope.cn/models/qwen/Qwen2.5-Coder-1.5B-Instruct-GGUF/"
+        "huggingface": "https://huggingface.co/Qwen/",
+        "hf-mirror": "https://hf-mirror.com/Qwen/",
+        "modelscope-direct": "https://modelscope.oss-cn-beijing.aliyuncs.com/models/qwen/",
+        "modelscope": "https://www.modelscope.cn/api/v1/models/qwen/",
+        "huggingface-mirror": "https://huggingface.co.uk/Qwen/",
+        "hf-mirror-cn": "https://hf-mirror.com/Qwen/",
+        "modelscope-cdn": "https://cdn.modelscope.cn/models/qwen/"
     }
     
     def __init__(self):
@@ -168,6 +170,9 @@ class LocalModelManager:
         
     def get_available_models(self) -> Dict[str, ModelInfo]:
         """获取可用模型列表"""
+        print(f"可用模型数量: {len(self.AVAILABLE_MODELS)}")
+        for name, model_info in self.AVAILABLE_MODELS.items():
+            print(f"  - {name}: {model_info.file_path}")
         return self.AVAILABLE_MODELS.copy()
     
     def _load_download_statuses(self):
@@ -367,7 +372,10 @@ class LocalModelManager:
             return self.working_mirrors[model_name]
         
         model_info = self.AVAILABLE_MODELS[model_name]
-        filename = f"qwen2.5-coder-1.5b-instruct-{model_name.split('-')[-1]}.gguf"
+        
+        # 现在只有7B模型
+        model_series = "Qwen2.5-Coder-7B-Instruct-GGUF"
+        filename = f"qwen2.5-coder-7b-instruct-{model_name.split('-')[-1]}.gguf"
         
         # 按优先级测试镜像源（简化版本，避免卡住）
         priority_order = ["hf-mirror", "modelscope-direct", "modelscope-cdn", "huggingface", "modelscope", "huggingface-mirror", "hf-mirror-cn"]
@@ -380,11 +388,13 @@ class LocalModelManager:
             base_url = self.MIRROR_SOURCES[mirror_name]
             
             if mirror_name == "modelscope":
-                test_url = f"{base_url}{filename}"
+                test_url = f"{base_url}{model_series}/repo?Revision=master&FilePath={filename}"
             elif mirror_name == "modelscope-direct":
-                test_url = f"{base_url}{filename}"
+                test_url = f"{base_url}{model_series}/{filename}"
+            elif mirror_name == "modelscope-cdn":
+                test_url = f"{base_url}{model_series}/{filename}"
             else:
-                test_url = f"{base_url}{filename}"
+                test_url = f"{base_url}{model_series}/resolve/main/{filename}"
             
             # 直接使用第一个镜像源，避免网络测试卡住
             self.working_mirrors[model_name] = test_url
@@ -400,18 +410,35 @@ class LocalModelManager:
         installed = []
         for model_info in self.AVAILABLE_MODELS.values():
             if os.path.exists(model_info.file_path):
-                # 检查文件大小是否匹配
+                # 只检查文件是否存在，不检查大小
                 actual_size = os.path.getsize(model_info.file_path)
-                if abs(actual_size - model_info.size) < model_info.size * 0.1:  # 允许10%误差
-                    installed.append(model_info)
+                print(f"检查模型 {model_info.name}:")
+                print(f"  文件路径: {model_info.file_path}")
+                print(f"  实际大小: {actual_size:,} 字节 ({actual_size//1024//1024}MB)")
+                print(f"  ✅ 模型已安装")
+                installed.append(model_info)
+        print(f"已安装的模型数量: {len(installed)}")
+        for model in installed:
+            print(f"  - {model.name}")
         return installed
     
     def is_model_installed(self, model_name: str) -> bool:
         """检查模型是否已安装"""
         if model_name not in self.AVAILABLE_MODELS:
+            print(f"模型 {model_name} 不在可用模型列表中")
             return False
         model_info = self.AVAILABLE_MODELS[model_name]
-        return os.path.exists(model_info.file_path)
+        exists = os.path.exists(model_info.file_path)
+        print(f"检查模型文件: {model_info.file_path}, 存在: {exists}")
+        
+        if exists:
+            # 只检查文件是否存在，不检查大小
+            actual_size = os.path.getsize(model_info.file_path)
+            print(f"✅ 模型 {model_name} 已安装 (大小: {actual_size//1024//1024}MB)")
+            return True
+        else:
+            print(f"❌ 模型 {model_name} 文件不存在")
+            return False
     
     def download_model(self, model_name: str, progress_callback: Optional[Callable] = None, 
                       error_callback: Optional[Callable] = None, success_callback: Optional[Callable] = None) -> bool:
@@ -529,24 +556,34 @@ class LocalModelManager:
     
     def load_model(self, model_name: str) -> bool:
         """加载模型"""
+        print(f"开始加载模型: {model_name}")
+        
         if not LLAMA_CPP_AVAILABLE:
             print("llama-cpp-python 未安装，无法加载模型")
             return False
             
         if model_name not in self.AVAILABLE_MODELS:
+            print(f"模型 {model_name} 不在可用模型列表中")
             return False
             
         model_info = self.AVAILABLE_MODELS[model_name]
+        print(f"模型文件路径: {model_info.file_path}")
+        
         if not os.path.exists(model_info.file_path):
+            print(f"模型文件不存在: {model_info.file_path}")
             return False
             
+        print(f"模型文件存在，开始加载...")
+        
         try:
             # 释放之前的模型
             if self.llm_instance:
+                print("释放之前的模型实例")
                 del self.llm_instance
                 self.llm_instance = None
                 
             # 加载新模型
+            print(f"正在加载模型: {model_info.file_path}")
             self.llm_instance = Llama(
                 model_path=model_info.file_path,
                 n_ctx=2048,  # 上下文长度
@@ -554,11 +591,67 @@ class LocalModelManager:
                 verbose=False
             )
             self.current_model = model_name
+            print(f"模型加载成功: {model_name}")
             return True
             
         except Exception as e:
             print(f"加载模型失败: {str(e)}")
+            import traceback
+            traceback.print_exc()
             return False
+    
+    def _clean_prompt(self, prompt: str) -> str:
+        """清理prompt，移除错误信息和重复内容，限制长度"""
+        if "生成响应时出错" in prompt or "错误:" in prompt:
+            # 提取最后一个用户问题
+            lines = prompt.split('\n')
+            user_questions = []
+            for line in lines:
+                if line.startswith('用户: '):
+                    user_questions.append(line[3:].strip())
+            
+            if user_questions:
+                return user_questions[-1]  # 使用最后一个用户问题
+            else:
+                return "你好"  # 默认问题
+        
+        # 移除重复的对话模式
+        lines = prompt.split('\n')
+        cleaned_lines = []
+        seen_patterns = set()
+        
+        for line in lines:
+            # 跳过重复的"用户: 你好"模式
+            if line.strip() in seen_patterns and line.startswith('用户: '):
+                continue
+            seen_patterns.add(line.strip())
+            cleaned_lines.append(line)
+        
+        result = '\n'.join(cleaned_lines)
+        
+        # 限制总长度，避免超出上下文窗口
+        if len(result) > 1000:
+            result = result[:1000] + "..."
+        
+        return result
+    
+    def is_model_loaded(self) -> bool:
+        """检查是否有模型已加载"""
+        return self.llm_instance is not None and self.current_model is not None
+    
+    def get_loaded_model_name(self) -> Optional[str]:
+        """获取当前加载的模型名称"""
+        return self.current_model if self.is_model_loaded() else None
+    
+    def get_model_status(self) -> dict:
+        """获取模型状态信息"""
+        return {
+            "is_loaded": self.is_model_loaded(),
+            "current_model": self.current_model,
+            "available_models": list(self.AVAILABLE_MODELS.keys()),
+            "installed_models": [name for name in self.AVAILABLE_MODELS.keys() 
+                               if self.is_model_installed(name)]
+        }
     
     def get_response(self, prompt: str, max_tokens: int = 512) -> str:
         """获取模型响应"""
@@ -574,7 +667,9 @@ class LocalModelManager:
 请用简洁、易懂的中文回答用户的问题，并提供实用的代码示例。
 如果用户询问代码相关问题，请提供完整的、可运行的代码示例。"""
             
-            full_prompt = f"{system_prompt}\n\n用户问题: {prompt}"
+            # 清理prompt，移除错误信息
+            clean_prompt = self._clean_prompt(prompt)
+            full_prompt = f"{system_prompt}\n\n用户问题: {clean_prompt}"
             
             response = self.llm_instance(
                 full_prompt,
@@ -590,39 +685,95 @@ class LocalModelManager:
             return f"生成响应时出错: {str(e)}"
     
     def stream_response(self, prompt: str, callback: Callable[[str], None], 
-                       max_tokens: int = 512) -> None:
+                       error_callback: Callable[[str], None] = None, max_tokens: int = 512) -> None:
         """流式生成响应"""
+        print(f"stream_response 被调用，prompt: {prompt[:100]}...")
+        
         if not LLAMA_CPP_AVAILABLE:
-            callback("错误: llama-cpp-python 未安装")
+            error_msg = "错误: llama-cpp-python 未安装"
+            print(error_msg)
+            if error_callback:
+                error_callback(error_msg)
+            else:
+                callback(error_msg)
             return
             
         if not self.llm_instance:
-            callback("错误: 没有加载任何模型")
+            error_msg = "错误: 没有加载任何模型"
+            print(error_msg)
+            if error_callback:
+                error_callback(error_msg)
+            else:
+                callback(error_msg)
             return
             
         try:
-            system_prompt = """你是一个专业的Python编程助手，专门帮助用户学习Python编程。
-请用简洁、易懂的中文回答用户的问题，并提供实用的代码示例。
-如果用户询问代码相关问题，请提供完整的、可运行的代码示例。"""
+            # 简化系统提示，减少token使用
+            system_prompt = "你是Python编程助手，用中文回答并提供代码示例。"
             
-            full_prompt = f"{system_prompt}\n\n用户问题: {prompt}"
+            # 清理prompt，移除错误信息并限制长度
+            clean_prompt = self._clean_prompt(prompt)
+            
+            # 限制prompt长度，避免超出上下文窗口
+            if len(clean_prompt) > 1000:
+                clean_prompt = clean_prompt[:1000] + "..."
+            
+            full_prompt = f"{system_prompt}\n\n问题: {clean_prompt}\n\n回答:"
+            print(f"清理后的prompt: {clean_prompt}")
+            print(f"完整prompt: {full_prompt[:200]}...")
             
             # 流式生成
-            for chunk in self.llm_instance(
-                full_prompt,
-                max_tokens=max_tokens,
-                temperature=0.7,
-                top_p=0.9,
-                stop=["用户问题:", "\n\n用户问题:"],
-                stream=True
-            ):
-                if 'choices' in chunk and len(chunk['choices']) > 0:
-                    delta = chunk['choices'][0].get('text', '')
-                    if delta:
-                        callback(delta)
+            print("开始流式生成...")
+            try:
+                # 使用正确的 llama-cpp-python API
+                response = self.llm_instance(
+                    full_prompt,
+                    max_tokens=max_tokens,
+                    temperature=0.7,
+                    top_p=0.9,
+                    stop=["用户:", "用户问题:", "\n\n用户:", "\n\n用户问题:", "助手:", "\n\n助手:"],
+                    stream=True
+                )
+                
+                for chunk in response:
+                    print(f"收到chunk: {chunk}")
+                    if 'choices' in chunk and len(chunk['choices']) > 0:
+                        delta = chunk['choices'][0].get('text', '')
+                        if delta:
+                            print(f"发送delta: {delta}")
+                            callback(delta)
+                            
+            except Exception as stream_error:
+                print(f"流式生成错误: {stream_error}")
+                # 如果流式生成失败，尝试非流式生成
+                print("尝试非流式生成...")
+                try:
+                    response = self.llm_instance(
+                        full_prompt,
+                        max_tokens=max_tokens,
+                        temperature=0.7,
+                        top_p=0.9,
+                        stop=["用户:", "用户问题:", "\n\n用户:", "\n\n用户问题:", "助手:", "\n\n助手:"],
+                        stream=False
+                    )
+                    if 'choices' in response and len(response['choices']) > 0:
+                        text = response['choices'][0].get('text', '')
+                        if text:
+                            print(f"非流式响应: {text}")
+                            callback(text)
+                except Exception as non_stream_error:
+                    print(f"非流式生成也失败: {non_stream_error}")
+                    raise non_stream_error
                         
         except Exception as e:
-            callback(f"生成响应时出错: {str(e)}")
+            error_msg = f"生成响应时出错: {str(e)}"
+            print(error_msg)
+            import traceback
+            traceback.print_exc()
+            if error_callback:
+                error_callback(error_msg)
+            else:
+                callback(error_msg)
     
     def get_model_status(self) -> Dict:
         """获取模型状态"""
@@ -630,8 +781,52 @@ class LocalModelManager:
             "current_model": self.current_model,
             "is_loaded": self.llm_instance is not None,
             "installed_models": [m.name for m in self.get_installed_models()],
-            "available_models": list(self.AVAILABLE_MODELS.keys())
+            "available_models": list(self.AVAILABLE_MODELS.keys()),
+            "llama_cpp_available": LLAMA_CPP_AVAILABLE
         }
+    
+    def test_model_loading(self, model_name: str) -> Dict:
+        """测试模型加载"""
+        result = {
+            "model_name": model_name,
+            "llama_cpp_available": LLAMA_CPP_AVAILABLE,
+            "model_in_list": model_name in self.AVAILABLE_MODELS,
+            "file_exists": False,
+            "file_path": "",
+            "load_success": False,
+            "error_message": ""
+        }
+        
+        if not LLAMA_CPP_AVAILABLE:
+            result["error_message"] = "llama-cpp-python 未安装"
+            return result
+            
+        if model_name not in self.AVAILABLE_MODELS:
+            result["error_message"] = "模型不在可用列表中"
+            return result
+            
+        model_info = self.AVAILABLE_MODELS[model_name]
+        result["file_path"] = model_info.file_path
+        result["file_exists"] = os.path.exists(model_info.file_path)
+        
+        if not result["file_exists"]:
+            result["error_message"] = "模型文件不存在"
+            return result
+            
+        try:
+            # 尝试加载模型
+            test_llm = Llama(
+                model_path=model_info.file_path,
+                n_ctx=512,  # 使用较小的上下文长度进行测试
+                n_threads=2,  # 使用较少的线程
+                verbose=False
+            )
+            result["load_success"] = True
+            del test_llm  # 释放测试实例
+        except Exception as e:
+            result["error_message"] = str(e)
+            
+        return result
     
     def delete_model(self, model_name: str) -> bool:
         """删除模型"""

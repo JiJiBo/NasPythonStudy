@@ -78,7 +78,7 @@ def llm_setting_page(page: ft.Page, on_back=None):
             ft.dropdown.Option("deepseek"),
             ft.dropdown.Option("OpenAI"),
             ft.dropdown.Option("ollama"),
-            ft.dropdown.Option("local"),
+            ft.dropdown.Option("本地"),
         ],
         value=latest_config.get("provider") if latest_config else "deepseek",
         width=380,
@@ -105,10 +105,11 @@ def llm_setting_page(page: ft.Page, on_back=None):
     download_btn = ft.ElevatedButton("下载模型")
     load_btn = ft.ElevatedButton("加载模型")
     delete_btn = ft.ElevatedButton("删除模型")
+    test_btn = ft.ElevatedButton("测试模型", bgcolor=ft.Colors.ORANGE)
     
     local_model_buttons = ft.Column([
         ft.Row([download_btn, load_btn], spacing=10),
-        ft.Row([delete_btn], spacing=10)
+        ft.Row([delete_btn, test_btn], spacing=10)
     ], spacing=5)
     
     config_container = ft.Column(spacing=8)
@@ -122,7 +123,7 @@ def llm_setting_page(page: ft.Page, on_back=None):
             config_container.controls.append(api_key_field)
         elif model_dropdown.value == "ollama":
             config_container.controls.extend([addr_field, ollama_model_field])
-        elif model_dropdown.value == "local":
+        elif model_dropdown.value == "本地":
             config_container.controls.extend([
                 local_model_dropdown,
                 local_model_status,
@@ -223,11 +224,25 @@ def llm_setting_page(page: ft.Page, on_back=None):
     
     # 加载模型
     def load_model(model_name):
+        print(f"UI层开始加载模型: {model_name}")
+        
+        # 检查模型是否已安装
+        if not local_model_manager.is_model_installed(model_name):
+            print(f"模型 {model_name} 未安装")
+            page.snack_bar = ft.SnackBar(ft.Text(f"模型 {model_name} 未安装，请先下载"))
+            page.snack_bar.open = True
+            page.update()
+            return
+        
+        print(f"模型 {model_name} 已安装，开始加载...")
+        
         if local_model_manager.load_model(model_name):
+            print(f"模型加载成功: {model_name}")
             update_local_model_status()
             page.snack_bar = ft.SnackBar(ft.Text(f"已加载模型: {model_name}"))
             page.snack_bar.open = True
         else:
+            print(f"模型加载失败: {model_name}")
             page.snack_bar = ft.SnackBar(ft.Text(f"加载模型失败: {model_name}"))
             page.snack_bar.open = True
         page.update()
@@ -243,7 +258,7 @@ def llm_setting_page(page: ft.Page, on_back=None):
             if model_dropdown.value == "ollama":
                 addr_field.value = latest.get("addr") or "http://localhost:11434"
                 ollama_model_field.value = latest.get("model") or ""
-            if model_dropdown.value == "local":
+            if model_dropdown.value == "本地":
                 local_model_dropdown.value = latest.get("model") or ""
             selected_config_id["id"] = latest.get("id")
         else:
@@ -268,7 +283,7 @@ def llm_setting_page(page: ft.Page, on_back=None):
             model_name = ollama_model_field.value
         elif selected == "deepseek":
             model_name = "deepseek-chat"
-        elif selected == "local":
+        elif selected == "本地":
             model_name = local_model_dropdown.value
             if model_name:
                 # 加载选中的本地模型
@@ -433,9 +448,37 @@ def llm_setting_page(page: ft.Page, on_back=None):
         print("删除按钮被点击!")
         show_delete_dialog()
     
+    def on_test_click(e):
+        print("测试按钮被点击!")
+        if local_model_dropdown.value:
+            test_result = local_model_manager.test_model_loading(local_model_dropdown.value)
+            print(f"测试结果: {test_result}")
+            
+            # 显示测试结果
+            result_text = f"""测试结果:
+模型: {test_result['model_name']}
+llama-cpp可用: {test_result['llama_cpp_available']}
+模型在列表中: {test_result['model_in_list']}
+文件存在: {test_result['file_exists']}
+文件路径: {test_result['file_path']}
+加载成功: {test_result['load_success']}
+错误信息: {test_result['error_message']}"""
+            
+            page.snack_bar = ft.SnackBar(
+                content=ft.Text(result_text, size=10),
+                bgcolor=ft.Colors.BLUE if test_result['load_success'] else ft.Colors.RED
+            )
+            page.snack_bar.open = True
+            page.update()
+        else:
+            page.snack_bar = ft.SnackBar(ft.Text("请先选择模型"))
+            page.snack_bar.open = True
+            page.update()
+    
     download_btn.on_click = on_download_click
     load_btn.on_click = on_load_click
     delete_btn.on_click = on_delete_click
+    test_btn.on_click = on_test_click
     
     render_config_fields()
     load_latest_config()

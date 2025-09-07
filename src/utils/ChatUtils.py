@@ -159,7 +159,7 @@ class AIRequestHandler:
         self.base_url = base_url.rstrip("/") if base_url else None
         self.api_key = api_key
         self.valid = valid
-        self.is_local_model = provider == "local"
+        self.is_local_model = provider == "本地"
 
         self._init_client()
 
@@ -175,7 +175,7 @@ class AIRequestHandler:
             self.client = None
         elif self.provider.lower() == "ollama":
             self.client = None
-        elif self.provider.lower() == "local":
+        elif self.provider == "本地":
             # 本地模型不需要初始化client，直接使用local_model_manager
             self.client = None
         else:
@@ -212,7 +212,7 @@ class AIRequestHandler:
                 api_key=config.get("api_key"),
                 valid=True
             )
-        elif provider == "local":
+        elif provider in ["local", "本地"]:
             return cls(
                 provider=config.get("provider"),
                 model=config.get("model"),
@@ -220,6 +220,9 @@ class AIRequestHandler:
                 api_key=None,
                 valid=True
             )
+        else:
+            # 未知的provider，返回无效配置
+            return cls(valid=False)
 
     def refresh_config(self):
         db = LLMConfigDB()
@@ -244,21 +247,26 @@ class AIRequestHandler:
             self.base_url = config.get("base_url").rstrip("/") if config.get("base_url") else None
         elif provider == "ollama":
             self.base_url = config.get("addr").rstrip("/") if config.get("addr") else None
-        elif provider == "local":
+        elif provider == "本地":
             self.base_url = None
         self._init_client()
 
     # ---------------- 单次响应（带历史） ----------------
     def get_response_with_history(self, messages):
         try:
-            if self.provider == "local":
+            print(f"get_response_with_history 被调用，provider: {self.provider}")
+            if self.provider == "本地":
                 # 本地模型处理
+                print(f"使用本地模型，当前模型: {local_model_manager.current_model}")
                 if not local_model_manager.current_model:
                     return "错误: 没有加载本地模型，请先在设置中选择并下载模型"
                 
                 # 将messages转换为单个prompt
                 prompt = self._messages_to_prompt(messages)
-                return local_model_manager.get_response(prompt)
+                print(f"转换后的prompt: {prompt[:100]}...")
+                response = local_model_manager.get_response(prompt)
+                print(f"模型响应: {response[:100]}...")
+                return response
             
             elif self.provider == "ollama":
                 url = f"{self.base_url}/api/chat"
@@ -289,7 +297,23 @@ class AIRequestHandler:
     # ---------------- 流式响应（带历史） ----------------
     def stream_response_with_history(self, messages, callback, error_callback=None, cancel_check=None):
         try:
-            if self.provider == "ollama":
+            print(f"stream_response_with_history 被调用，provider: {self.provider}")
+            if self.provider == "本地":
+                # 本地模型处理
+                print(f"使用本地模型流式响应，当前模型: {local_model_manager.current_model}")
+                if not local_model_manager.current_model:
+                    if error_callback:
+                        error_callback("错误: 没有加载本地模型，请先在设置中选择并下载模型")
+                    return
+                
+                # 将messages转换为单个prompt
+                prompt = self._messages_to_prompt(messages)
+                print(f"转换后的prompt: {prompt[:100]}...")
+                
+                # 使用本地模型的流式响应
+                local_model_manager.stream_response(prompt, callback, error_callback)
+                
+            elif self.provider == "ollama":
                 url = f"{self.base_url}/api/chat"
                 payload = {"model": self.model, "messages": messages, "stream": True}
                 with requests.post(url, json=payload, stream=True) as resp:
@@ -344,15 +368,32 @@ class AIRequestHandler:
                 raise e
     
     def _messages_to_prompt(self, messages):
-        """将messages格式转换为单个prompt字符串"""
+        """将messages格式转换为单个prompt字符串，限制长度避免超出上下文窗口"""
         prompt_parts = []
-        for msg in messages:
+        total_length = 0
+        max_length = 800  # 限制总长度
+        
+        # 只取最近的几条消息，避免上下文过长
+        recent_messages = messages[-3:] if len(messages) > 3 else messages
+        
+        for msg in recent_messages:
             role = msg.get("role", "")
             content = msg.get("content", "")
+            
             if role == "user":
-                prompt_parts.append(f"用户: {content}")
+                line = f"用户: {content}"
             elif role == "assistant":
-                prompt_parts.append(f"助手: {content}")
+                line = f"助手: {content}"
+            else:
+                continue
+                
+            # 检查是否会超出长度限制
+            if total_length + len(line) > max_length:
+                break
+                
+            prompt_parts.append(line)
+            total_length += len(line)
+        
         return "\n\n".join(prompt_parts)
 
 

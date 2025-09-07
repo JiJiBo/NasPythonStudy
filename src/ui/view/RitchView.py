@@ -98,6 +98,22 @@ class RichContent(ft.Column):
 
     def parse_and_add_content(self, text: str):
         self.text_str += text
+        
+        # 使用防抖机制，避免频繁重新渲染
+        if not hasattr(self, '_update_timer'):
+            self._update_timer = None
+        
+        # 取消之前的定时器
+        if self._update_timer:
+            self._update_timer.cancel()
+        
+        # 设置新的定时器，100ms后更新UI
+        import threading
+        self._update_timer = threading.Timer(0.1, self._delayed_update)
+        self._update_timer.start()
+    
+    def _delayed_update(self):
+        """延迟更新UI，避免频繁重新渲染"""
         self.append(self.text_str)
 
 
