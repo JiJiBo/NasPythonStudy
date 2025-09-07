@@ -2,7 +2,8 @@
 
 ## 项目简介
 
-Aithon 是一个基于 Flet 框架开发的 Python 学习助手应用，旨在为 Python 初学者提供交互式的学习体验。该应用集成了 AI 问答功能，让学习者在学习过程中能够随时获得智能解答和指导。
+Aithon 是一个基于 Flet 框架开发的 Python 学习助手应用，旨在为 Python 初学者提供交互式的学习体验。该应用集成了 AI
+问答功能，让学习者在学习过程中能够随时获得智能解答和指导。
 
 ### 主要功能
 
@@ -33,6 +34,12 @@ Aithon 是一个基于 Flet 框架开发的 Python 学习助手应用，旨在�
 
 ```shell
 flet build windows  
+```
+
+``` 
+通过网盘分享的文件：Aithon
+链接: https://pan.baidu.com/s/1TUQx701jINO4b-OKm9XCTQ?pwd=i66u 提取码: i66u 
+--来自百度网盘超级会员v9的分享
 ```
 
 ## 支持开发者
