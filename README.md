@@ -43,11 +43,12 @@ flet build windows
 
 您可以通过以下方式支持项目：
 
-#### 支付宝扫码支持
-![支付宝二维码](./assets/coffee/支付宝.JPG)
+#### 扫码支持
 
-#### 微信扫码支持
-![微信二维码](./assets/coffee/微信.JPG)
+<div align="center">
+  <img src="./assets/coffee/支付宝.JPG" alt="支付宝二维码" width="200" style="margin: 10px;">
+  <img src="./assets/coffee/微信.JPG" alt="微信二维码" width="200" style="margin: 10px;">
+</div>
 
 ### 🌟 其他支持方式
 
