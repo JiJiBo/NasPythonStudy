@@ -58,6 +58,13 @@ class SettingContent(ft.Column):
                 subtitle=ft.Text("聊天会加载几条历史记录，当作记忆？", size=12, color=ft.Colors.GREY),
                 on_click=self._open_history_setting,
             ),
+            # 应用更新
+            ft.ListTile(
+                leading=ft.Icon(ft.Icons.UPDATE, size=30),
+                title=ft.Text("应用更新", weight=ft.FontWeight.BOLD),
+                subtitle=ft.Text("检查并更新应用版本", size=12, color=ft.Colors.GREY),
+                on_click=self._open_update_manager,
+            ),
             # # 系统信息
             # ft.ListTile(
             #     leading=ft.Icon(ft.Icons.INFO, size=30),
@@ -157,3 +164,115 @@ class SettingContent(ft.Column):
 
         # 启动后台线程
         threading.Thread(target=get_info, daemon=True).start()
+
+    def _open_update_manager(self, e):
+        """打开更新管理器对话框"""
+        from src.utils.UpdateManager import update_manager
+        
+        # 创建更新状态显示组件
+        status_text = ft.Text("正在检查更新...", size=14, color=ft.Colors.BLUE)
+        progress_bar = ft.ProgressBar(width=400, visible=False)
+        update_button = ft.ElevatedButton("检查更新", disabled=True)
+        version_text = ft.Text("", size=12, color=ft.Colors.GREY)
+        
+        # 创建对话框
+        dialog = ft.AlertDialog(
+            title=ft.Text("应用更新"),
+            content=ft.Container(
+                content=ft.Column([
+                    status_text,
+                    version_text,
+                    progress_bar,
+                    update_button
+                ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),
+                padding=20,
+                width=400
+            ),
+            actions=[
+                ft.TextButton("关闭", on_click=lambda e: self.p.close(dialog))
+            ]
+        )
+        
+        def update_ui():
+            """更新UI状态"""
+            self.p.update()
+        
+        def check_updates():
+            """检查更新"""
+            try:
+                # 更新状态文本
+                status_text.value = "正在检查应用更新..."
+                update_ui()
+                
+                # 检查应用更新
+                app_update = update_manager.check_app_update()
+                
+                if app_update and app_update.get("has_update"):
+                    status_text.value = f"发现新版本: {app_update['remote_version']}"
+                    status_text.color = ft.Colors.GREEN
+                    version_text.value = f"当前版本: {app_update['current_version']} → 新版本: {app_update['remote_version']}"
+                    
+                    # 启用更新按钮
+                    update_button.disabled = False
+                    update_button.text = "立即更新"
+                    update_button.on_click = lambda e: start_update(app_update)
+                else:
+                    status_text.value = "已是最新版本"
+                    status_text.color = ft.Colors.GREEN
+                    version_text.value = f"当前版本: {update_manager.update_config.get('current_version', '未知')}"
+                
+                update_ui()
+                
+            except Exception as ex:
+                status_text.value = f"检查更新失败: {str(ex)}"
+                status_text.color = ft.Colors.RED
+                update_ui()
+        
+        def start_update(app_update):
+            """开始更新"""
+            try:
+                status_text.value = "正在下载更新..."
+                status_text.color = ft.Colors.BLUE
+                progress_bar.visible = True
+                progress_bar.value = 0
+                update_button.disabled = True
+                update_button.text = "更新中..."
+                update_ui()
+                
+                def progress_callback(update_type, progress, downloaded, total):
+                    """更新进度回调"""
+                    progress_bar.value = progress / 100
+                    status_text.value = f"下载进度: {progress:.1f}% ({downloaded//1024//1024}MB/{total//1024//1024}MB)"
+                    update_ui()
+                
+                def error_callback(error_msg):
+                    """错误回调"""
+                    status_text.value = f"更新失败: {error_msg}"
+                    status_text.color = ft.Colors.RED
+                    progress_bar.visible = False
+                    update_button.disabled = False
+                    update_button.text = "重试"
+                    update_ui()
+                
+                # 开始下载更新
+                update_url = app_update.get("update_url")
+                if update_url:
+                    success = update_manager.download_app_update(
+                        update_url, progress_callback, error_callback
+                    )
+                    if success:
+                        status_text.value = "更新下载完成，请重启应用"
+                        status_text.color = ft.Colors.GREEN
+                        progress_bar.visible = False
+                        update_ui()
+                
+            except Exception as ex:
+                error_callback(str(ex))
+        
+        # 显示对话框
+        self.p.dialog = dialog
+        self.p.open(dialog)
+        self.p.update()
+        
+        # 启动检查更新线程
+        threading.Thread(target=check_updates, daemon=True).start()

@@ -1,5 +1,5 @@
 {
-  "version_url": "https://your-cdn.com/version.json",
+  "version_url": "https://your-oss-domain.com/version.json",
   "app_name": "Aithon",
   "current_version": "0.1.0",
   "update_check_interval": 3600,

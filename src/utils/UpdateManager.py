@@ -90,20 +90,19 @@ class UpdateManager:
             response.raise_for_status()
             remote_info = response.json()
             
-            from src.utils.LocalModelManager import local_model_manager
-            
+            # 暂时禁用模型更新检查，因为LocalModelManager被删除
             model_updates = {}
             models_info = remote_info.get("models", {})
             
+            # 简单的模型更新检查逻辑
             for model_name, model_info in models_info.items():
-                local_models = local_model_manager.get_installed_models()
-                local_model = next((m for m in local_models if m.name == model_name), None)
-                
-                if not local_model or local_model.version != model_info.get("version"):
+                # 检查本地模型文件是否存在
+                model_file = self.models_dir / f"{model_name}.gguf"
+                if not model_file.exists():
                     model_updates[model_name] = {
                         "has_update": True,
-                        "current_version": local_model.version if local_model else "未安装",
-                        "remote_version": model_info.get("version"),
+                        "current_version": "未安装",
+                        "remote_version": model_info.get("version", "未知"),
                         "url": model_info.get("url"),
                         "size": model_info.get("size", 0),
                         "description": model_info.get("description", "")
@@ -166,10 +165,10 @@ class UpdateManager:
                              progress_callback: Optional[Callable] = None,
                              error_callback: Optional[Callable] = None) -> bool:
         """下载模型更新"""
-        from src.utils.LocalModelManager import local_model_manager
-        return local_model_manager.download_model(
-            model_name, progress_callback, error_callback
-        )
+        # 暂时禁用模型下载，因为LocalModelManager被删除
+        if error_callback:
+            error_callback("模型下载功能暂时不可用")
+        return False
     
     def _apply_app_update(self, zip_file: str):
         """应用应用更新"""
@@ -293,6 +292,7 @@ class UpdateManager:
             backup_path = Path(backup_dir)
             backup_path.mkdir(exist_ok=True)
             
+            from datetime import datetime
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             backup_name = f"backup_{timestamp}"
             backup_full_path = backup_path / backup_name
@@ -337,12 +337,13 @@ class UpdateManager:
         
         # 获取本地模型信息
         try:
-            from src.utils.LocalModelManager import local_model_manager
-            installed_models = local_model_manager.get_installed_models()
-            for model in installed_models:
-                version_info["models"][model.name] = {
-                    "version": model.version,
-                    "size": model.size,
+            # 简单的模型文件检查
+            for model_file in self.models_dir.glob("*.gguf"):
+                model_name = model_file.stem
+                model_size = model_file.stat().st_size
+                version_info["models"][model_name] = {
+                    "version": "未知",
+                    "size": model_size,
                     "installed": True
                 }
         except Exception as e:
