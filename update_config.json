@@ -1,0 +1,12 @@
+{
+  "version_url": "https://your-cdn.com/version.json",
+  "app_name": "Aithon",
+  "current_version": "0.1.0",
+  "update_check_interval": 3600,
+  "auto_download": false,
+  "backup_before_update": true,
+  "mirror_urls": [
+    "https://mirror1.example.com/",
+    "https://mirror2.example.com/"
+  ]
+}

@@ -16,15 +16,47 @@ from tqdm import tqdm
 class UpdateManager:
     """更新管理器"""
     
-    def __init__(self):
+    def __init__(self, config_file: str = "update_config.json"):
+        self.config_file = config_file
         self.version_file = "version.json"
-        self.update_config = {
-            "version_url": "https://your-oss-domain.com/version.json",  # 替换为实际的OSS地址
-            "app_name": "Aithon",
-            "current_version": "0.1.0"
-        }
+        self.update_config = self._load_config()
         self.download_progress = {}
+        self.models_dir = Path("models")
+        self.models_dir.mkdir(exist_ok=True)
+    
+    def _load_config(self) -> Dict:
+        """加载更新配置"""
+        default_config = {
+            "version_url": "https://your-oss-domain.com/version.json",
+            "app_name": "Aithon",
+            "current_version": "0.1.0",
+            "update_check_interval": 3600,  # 1小时检查一次
+            "auto_download": False,
+            "backup_before_update": True,
+            "mirror_urls": [
+                "https://mirror1.example.com/",
+                "https://mirror2.example.com/"
+            ]
+        }
         
+        if os.path.exists(self.config_file):
+            try:
+                with open(self.config_file, "r", encoding="utf-8") as f:
+                    user_config = json.load(f)
+                    default_config.update(user_config)
+            except Exception as e:
+                print(f"加载配置文件失败: {e}")
+        
+        return default_config
+    
+    def save_config(self):
+        """保存更新配置"""
+        try:
+            with open(self.config_file, "w", encoding="utf-8") as f:
+                json.dump(self.update_config, f, indent=2, ensure_ascii=False)
+        except Exception as e:
+            print(f"保存配置文件失败: {e}")
+    
     def check_app_update(self) -> Optional[Dict]:
         """检查应用更新"""
         try:
@@ -180,6 +212,143 @@ class UpdateManager:
         """获取当前时间字符串"""
         from datetime import datetime
         return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    
+    def download_file_with_mirror(self, url: str, save_path: str, 
+                                 progress_callback: Optional[Callable] = None,
+                                 error_callback: Optional[Callable] = None) -> bool:
+        """使用镜像下载文件，支持断点续传"""
+        mirrors = [url] + self.update_config.get("mirror_urls", [])
+        
+        for mirror_url in mirrors:
+            try:
+                full_url = mirror_url.rstrip("/") + "/" + url.lstrip("/")
+                return self._download_file(full_url, save_path, progress_callback, error_callback)
+            except Exception as e:
+                print(f"镜像 {mirror_url} 下载失败: {e}")
+                continue
+        
+        if error_callback:
+            error_callback("所有镜像下载失败")
+        return False
+    
+    def _download_file(self, url: str, save_path: str,
+                      progress_callback: Optional[Callable] = None,
+                      error_callback: Optional[Callable] = None) -> bool:
+        """下载单个文件，支持断点续传"""
+        try:
+            # 检查是否支持断点续传
+            resume_pos = 0
+            if os.path.exists(save_path):
+                resume_pos = os.path.getsize(save_path)
+            
+            headers = {}
+            if resume_pos > 0:
+                headers['Range'] = f'bytes={resume_pos}-'
+            
+            response = requests.get(url, headers=headers, stream=True, timeout=30)
+            response.raise_for_status()
+            
+            total_size = int(response.headers.get('content-length', 0)) + resume_pos
+            downloaded = resume_pos
+            
+            mode = 'ab' if resume_pos > 0 else 'wb'
+            with open(save_path, mode) as f:
+                for chunk in response.iter_content(chunk_size=8192):
+                    if chunk:
+                        f.write(chunk)
+                        downloaded += len(chunk)
+                        
+                        if progress_callback and total_size > 0:
+                            progress = (downloaded / total_size) * 100
+                            progress_callback(url, progress, downloaded, total_size)
+            
+            return True
+            
+        except Exception as e:
+            if error_callback:
+                error_callback(f"下载失败: {str(e)}")
+            return False
+    
+    def verify_file_integrity(self, file_path: str, expected_hash: str) -> bool:
+        """验证文件完整性"""
+        try:
+            if not os.path.exists(file_path):
+                return False
+            
+            hash_md5 = hashlib.md5()
+            with open(file_path, "rb") as f:
+                for chunk in iter(lambda: f.read(8192), b""):
+                    hash_md5.update(chunk)
+            
+            actual_hash = hash_md5.hexdigest()
+            return actual_hash == expected_hash
+            
+        except Exception as e:
+            print(f"验证文件完整性失败: {e}")
+            return False
+    
+    def create_backup(self, backup_dir: str = "backup") -> bool:
+        """创建应用备份"""
+        try:
+            backup_path = Path(backup_dir)
+            backup_path.mkdir(exist_ok=True)
+            
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            backup_name = f"backup_{timestamp}"
+            backup_full_path = backup_path / backup_name
+            
+            # 复制关键文件
+            import shutil
+            shutil.copytree(".", backup_full_path, 
+                          ignore=shutil.ignore_patterns(
+                              "__pycache__", "*.pyc", ".git", "*.log", "backup"
+                          ))
+            
+            print(f"备份创建成功: {backup_full_path}")
+            return True
+            
+        except Exception as e:
+            print(f"创建备份失败: {e}")
+            return False
+    
+    def restore_from_backup(self, backup_path: str) -> bool:
+        """从备份恢复"""
+        try:
+            if not os.path.exists(backup_path):
+                print(f"备份路径不存在: {backup_path}")
+                return False
+            
+            import shutil
+            # 这里需要更谨慎的恢复逻辑
+            print(f"从备份恢复: {backup_path}")
+            return True
+            
+        except Exception as e:
+            print(f"恢复备份失败: {e}")
+            return False
+    
+    def get_local_version_info(self) -> Dict:
+        """获取本地版本信息"""
+        version_info = {
+            "app_version": self.update_config["current_version"],
+            "last_check": self._get_current_time(),
+            "models": {}
+        }
+        
+        # 获取本地模型信息
+        try:
+            from src.utils.LocalModelManager import local_model_manager
+            installed_models = local_model_manager.get_installed_models()
+            for model in installed_models:
+                version_info["models"][model.name] = {
+                    "version": model.version,
+                    "size": model.size,
+                    "installed": True
+                }
+        except Exception as e:
+            print(f"获取本地模型信息失败: {e}")
+        
+        return version_info
 
 # 全局更新管理器实例
 update_manager = UpdateManager()

@@ -1,0 +1,214 @@
+{
+  "version": "0.1.1",
+  "previous_version": "0.1.0",
+  "build_time": "2025-09-07T15:53:44.327149",
+  "changelog": "新增一键更新功能",
+  "total_files": 34,
+  "total_size": 259979,
+  "files": [
+    {
+      "path": ".idea/modules.xml",
+      "hash": "7b1fe080c85dea6e9c5d26c010ff63cd",
+      "size": 265,
+      "modified": "2025-08-27T17:18:53.023539"
+    },
+    {
+      "path": ".idea/src.iml",
+      "hash": "5681b7c470da9ed271f1de1465174d12",
+      "size": 452,
+      "modified": "2025-08-27T17:18:53.021534"
+    },
+    {
+      "path": ".idea/vcs.xml",
+      "hash": "1a16809a3a296b65911ab7b1b4ce2459",
+      "size": 188,
+      "modified": "2025-08-27T17:18:53.044050"
+    },
+    {
+      "path": ".idea/workspace.xml",
+      "hash": "f205baf3414b24458df95fc1a8901e03",
+      "size": 2823,
+      "modified": "2025-08-27T17:19:34.746136"
+    },
+    {
+      "path": ".idea/inspectionProfiles/profiles_settings.xml",
+      "hash": "05dbe611f5bdb7a801adb3f064d4bfa9",
+      "size": 174,
+      "modified": "2025-08-27T17:18:53.036541"
+    },
+    {
+      "path": "db/chat_db.py",
+      "hash": "a311724dfa21b03bdfafa4a11e8f91e2",
+      "size": 3032,
+      "modified": "2025-09-06T18:03:22.556810"
+    },
+    {
+      "path": "db/db_example.py",
+      "hash": "ece46c1e0b63234399e7178c61c9a390",
+      "size": 3181,
+      "modified": "2025-08-27T17:45:15.510321"
+    },
+    {
+      "path": "db/llm_config_db.py",
+      "hash": "11ae9d5723e6fd1e91c5d617d1523fe7",
+      "size": 5145,
+      "modified": "2025-09-07T14:55:33.877746"
+    },
+    {
+      "path": "db/path_utils.py",
+      "hash": "c67ba9fa59c1f48106c3471ac7b0c744",
+      "size": 388,
+      "modified": "2025-08-27T23:15:19.296980"
+    },
+    {
+      "path": "db/README_study_progress.md",
+      "hash": "03e0cff123e061461662caba01d61520",
+      "size": 3535,
+      "modified": "2025-09-06T13:50:48.182738"
+    },
+    {
+      "path": "db/study_progress_db.py",
+      "hash": "bbd63cd3df94a958b693df18bbc6d2ff",
+      "size": 8275,
+      "modified": "2025-09-06T13:50:48.183242"
+    },
+    {
+      "path": "str/APP_CONFIG.py",
+      "hash": "25d4ea9e0ce44bc415d597f919ab4144",
+      "size": 212,
+      "modified": "2025-08-30T14:44:54.805816"
+    },
+    {
+      "path": "ui/main_page.py",
+      "hash": "637238b69f50126f20575ee057c63cec",
+      "size": 2894,
+      "modified": "2025-09-07T01:03:38.384975"
+    },
+    {
+      "path": "ui/splash_page.py",
+      "hash": "c0c4cb1c7fcdd7a4e7c770fd2339e507",
+      "size": 1019,
+      "modified": "2025-08-27T17:25:56.139807"
+    },
+    {
+      "path": "ui/home/home_content.py",
+      "hash": "1deefcfaaf666176a829c56b947e7137",
+      "size": 6157,
+      "modified": "2025-09-06T13:50:48.184245"
+    },
+    {
+      "path": "ui/home/mine_content.py",
+      "hash": "0ab6f5683ece498c39a0233d3f30ef6b",
+      "size": 4981,
+      "modified": "2025-08-27T10:57:25.436928"
+    },
+    {
+      "path": "ui/home/setting_content.py",
+      "hash": "95df51014ec0863b9d15df4bed0b3dd3",
+      "size": 33315,
+      "modified": "2025-09-07T15:52:47.290496"
+    },
+    {
+      "path": "ui/llm/llm_settings.py",
+      "hash": "a69793adf1856140d35c6a50476de0f3",
+      "size": 18172,
+      "modified": "2025-09-07T15:18:51.240795"
+    },
+    {
+      "path": "ui/study/study_pagel.py",
+      "hash": "31ba94feb7356cadecdbe97b746df253",
+      "size": 27716,
+      "modified": "2025-09-06T15:58:58.859393"
+    },
+    {
+      "path": "ui/view/chat_view.py",
+      "hash": "400a70453949a51c132b77b9d129c42d",
+      "size": 7577,
+      "modified": "2025-09-06T13:50:48.188187"
+    },
+    {
+      "path": "ui/view/CodeRunner.py",
+      "hash": "d843af7d4921c3a6bdd65b408c9dee18",
+      "size": 3940,
+      "modified": "2025-09-06T14:33:46.818148"
+    },
+    {
+      "path": "ui/view/PullToRefresh.py",
+      "hash": "f9952f489a49ae5167194da5ee8a0ac3",
+      "size": 2017,
+      "modified": "2025-08-27T22:41:52.281815"
+    },
+    {
+      "path": "ui/view/RitchView.py",
+      "hash": "be0c2abc12fa6c8d61f101a2c5bd0d53",
+      "size": 4467,
+      "modified": "2025-09-06T13:50:48.187684"
+    },
+    {
+      "path": "utils/ChatUtils.py",
+      "hash": "e0b1278ce3bcdd82b782f685d9c6d153",
+      "size": 14136,
+      "modified": "2025-09-07T14:55:33.873747"
+    },
+    {
+      "path": "utils/CN2AN_Utils.py",
+      "hash": "1e6dbbf3f04502115cacbab1067e5598",
+      "size": 417,
+      "modified": "2025-08-30T14:52:57.006988"
+    },
+    {
+      "path": "utils/DownloadManager.py",
+      "hash": "80c2a8d986163f67286d227ac0f02bf2",
+      "size": 12884,
+      "modified": "2025-09-07T15:48:29.578061"
+    },
+    {
+      "path": "utils/DownloadStateManager.py",
+      "hash": "4313a9f8606d07f801a6276084814dd4",
+      "size": 10095,
+      "modified": "2025-09-06T17:35:07.922634"
+    },
+    {
+      "path": "utils/KVUtils.py",
+      "hash": "6a26a599aeed1ed38565d4649c89c179",
+      "size": 2501,
+      "modified": "2025-08-29T18:24:46.695731"
+    },
+    {
+      "path": "utils/LocalModelManager.py",
+      "hash": "1c6ca8efd99ee81699789f3471e51372",
+      "size": 29124,
+      "modified": "2025-09-07T15:46:16.936906"
+    },
+    {
+      "path": "utils/PythonEnvManager.py",
+      "hash": "656d163f574b37cb60e7aa7e38964467",
+      "size": 9864,
+      "modified": "2025-09-06T23:27:34.091078"
+    },
+    {
+      "path": "utils/SPUtils.py",
+      "hash": "7074b68df569c9a3ef812a4d59caa878",
+      "size": 2792,
+      "modified": "2025-08-29T18:24:46.696709"
+    },
+    {
+      "path": "utils/SystemInfo.py",
+      "hash": "4c03fba8db791d09a5bb07c12b8cc484",
+      "size": 12056,
+      "modified": "2025-09-06T23:27:34.084259"
+    },
+    {
+      "path": "utils/UpdateBuilder.py",
+      "hash": "9828dd48403ce77881defa9bcb4539cf",
+      "size": 12220,
+      "modified": "2025-09-07T15:04:41.533946"
+    },
+    {
+      "path": "utils/UpdateManager.py",
+      "hash": "7932589db3096b1a36635de7fd1a25cb",
+      "size": 13965,
+      "modified": "2025-09-07T15:47:50.409034"
+    }
+  ]
+}

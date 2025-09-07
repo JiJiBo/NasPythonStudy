@@ -1,0 +1,20 @@
+{
+  "app_version": "0.1.1",
+  "app_update_url": "https://your-cdn.com/app_0.1.1.zip",
+  "app_size": 52428800,
+  "changelog": "新增一键更新功能，优化用户体验",
+  "models": {
+    "qwen2.5-coder-1.5b-q5_k_m": {
+      "version": "2025-01-15",
+      "url": "https://your-cdn.com/models/qwen2.5-coder-1.5b-q5_k_m.gguf",
+      "size": 1100000000,
+      "description": "默认推荐模型，支持代码生成和解释"
+    },
+    "qwen2.5-coder-1.5b-q4_k_m": {
+      "version": "2025-01-15",
+      "url": "https://your-cdn.com/models/qwen2.5-coder-1.5b-q4_k_m.gguf",
+      "size": 900000000,
+      "description": "轻量级模型，适合低配置设备"
+    }
+  }
+}

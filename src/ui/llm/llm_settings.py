@@ -93,12 +93,23 @@ def llm_setting_page(page: ft.Page, on_back=None):
     # 本地模型相关控件
     local_model_dropdown = ft.Dropdown(
         label="选择本地模型",
-        width=380,
-        options=[]
+        width=400,
+        options=[],
+        expand=True
     )
-    local_model_status = ft.Text("", size=12, color=ft.Colors.GREY)
-    local_model_progress = ft.ProgressBar(width=380, visible=False)
-    local_model_progress_text = ft.Text("", size=12)
+    local_model_status = ft.Text("", size=12, color=ft.Colors.GREY, width=400)
+    local_model_progress = ft.ProgressBar(width=400, visible=False)
+    local_model_progress_text = ft.Text("", size=12, width=400)
+    
+    # 本地模型管理按钮 - 先创建按钮，稍后绑定事件
+    download_btn = ft.ElevatedButton("下载模型")
+    load_btn = ft.ElevatedButton("加载模型")
+    delete_btn = ft.ElevatedButton("删除模型")
+    
+    local_model_buttons = ft.Column([
+        ft.Row([download_btn, load_btn], spacing=10),
+        ft.Row([delete_btn], spacing=10)
+    ], spacing=5)
     
     config_container = ft.Column(spacing=8)
 
@@ -116,7 +127,8 @@ def llm_setting_page(page: ft.Page, on_back=None):
                 local_model_dropdown,
                 local_model_status,
                 local_model_progress,
-                local_model_progress_text
+                local_model_progress_text,
+                local_model_buttons
             ])
             refresh_local_model_list()
 
@@ -129,13 +141,17 @@ def llm_setting_page(page: ft.Page, on_back=None):
         
         for model_name, model_info in available_models.items():
             is_installed = any(m.name == model_name for m in installed_models)
-            status = "✓ 已安装" if is_installed else "未安装"
+            status = "✓" if is_installed else "✗"
             size_mb = model_info.size // (1024 * 1024)
+            
+            # 简化显示文本，避免过长
+            display_name = model_name.replace("qwen2.5-coder-1.5b-", "Qwen-")
+            text = f"{display_name} ({size_mb}MB) {status}"
             
             local_model_dropdown.options.append(
                 ft.dropdown.Option(
                     key=model_name,
-                    text=f"{model_name} ({size_mb}MB) - {status}",
+                    text=text,
                     disabled=not is_installed
                 )
             )
@@ -160,18 +176,50 @@ def llm_setting_page(page: ft.Page, on_back=None):
     
     # 下载模型
     def download_model(model_name):
+        print(f"开始下载模型: {model_name}")  # 调试信息
+        
         def progress_callback(name, progress, downloaded, total):
             local_model_progress.visible = True
             local_model_progress.value = progress / 100
             local_model_progress_text.value = f"下载中: {progress:.1f}% ({downloaded//1024//1024}MB/{total//1024//1024}MB)"
+            print(f"下载进度: {progress:.1f}%")  # 调试信息
             page.update()
         
         def error_callback(error):
             local_model_progress.visible = False
             local_model_progress_text.value = f"下载失败: {error}"
+            print(f"下载错误: {error}")  # 调试信息
+            page.snack_bar = ft.SnackBar(ft.Text(f"下载失败: {error}"))
+            page.snack_bar.open = True
             page.update()
         
-        local_model_manager.download_model(model_name, progress_callback, error_callback)
+        def success_callback():
+            local_model_progress.visible = False
+            local_model_progress_text.value = "下载完成"
+            print(f"模型下载完成: {model_name}")  # 调试信息
+            page.snack_bar = ft.SnackBar(ft.Text(f"模型 {model_name} 下载完成"))
+            page.snack_bar.open = True
+            # 刷新模型列表
+            refresh_local_model_list()
+            page.update()
+        
+        try:
+            # 显示下载开始状态
+            local_model_progress.visible = True
+            local_model_progress.value = 0
+            local_model_progress_text.value = "准备下载..."
+            page.update()
+            
+            # 开始下载
+            success = local_model_manager.download_model(model_name, progress_callback, error_callback)
+            if success:
+                # 下载完成后调用成功回调
+                success_callback()
+            else:
+                error_callback("下载启动失败")
+                
+        except Exception as e:
+            error_callback(f"下载异常: {str(e)}")
     
     # 加载模型
     def load_model(model_name):
@@ -208,9 +256,7 @@ def llm_setting_page(page: ft.Page, on_back=None):
         base_url_field.value = "https://api.openai.com/v1"
         addr_field.value = "http://localhost:11434"
         ollama_model_field.value = ""
-        local_model_dropdown.value = ""
-        local_model_progress.visible = False
-        local_model_progress_text.value = ""
+        # 不清空本地模型相关控件，保持状态
         page.update()
 
     # 保存新配置
@@ -260,10 +306,15 @@ def llm_setting_page(page: ft.Page, on_back=None):
         for model_name, model_info in available_models.items():
             if model_name not in installed_names:
                 size_mb = model_info.size // (1024 * 1024)
+                # 简化显示文本
+                display_name = model_name.replace("qwen2.5-coder-1.5b-", "Qwen-")
+                short_desc = model_info.description[:20] + "..." if len(model_info.description) > 20 else model_info.description
+                text = f"{display_name} ({size_mb}MB) - {short_desc}"
+                
                 download_options.append(
                     ft.dropdown.Option(
                         key=model_name,
-                        text=f"{model_name} ({size_mb}MB) - {model_info.description}"
+                        text=text
                     )
                 )
         
@@ -274,24 +325,32 @@ def llm_setting_page(page: ft.Page, on_back=None):
             return
         
         download_dropdown = ft.Dropdown(
-            label="选择要下载的模型",
             options=download_options,
             width=400
         )
         
         def confirm_download(e):
             if download_dropdown.value:
+                print(f"开始下载模型: {download_dropdown.value}")  # 调试信息
                 download_model(download_dropdown.value)
                 page.close(dlg)
         
+        def cancel_download(e):
+            page.close(dlg)
+        
         dlg = ft.AlertDialog(
             title=ft.Text("下载模型"),
-            content=download_dropdown,
+            content=ft.Column([
+                ft.Text("选择要下载的模型:", size=14),
+                download_dropdown
+            ], spacing=10),
             actions=[
-                ft.TextButton("下载", on_click=confirm_download),
-                ft.TextButton("取消", on_click=lambda e: page.close(dlg))
+                ft.ElevatedButton("下载", on_click=confirm_download),
+                ft.TextButton("取消", on_click=cancel_download)
             ]
         )
+        
+        print("打开下载对话框")  # 调试信息
         page.dialog = dlg
         page.open(dlg)
         page.update()
@@ -345,29 +404,61 @@ def llm_setting_page(page: ft.Page, on_back=None):
         page.open(dlg)
         page.update()
 
+    # 模型切换事件
+    def on_model_change(e):
+        selected_config_id["id"] = None
+        render_config_fields()
+        load_latest_config()
+    
     model_dropdown.on_change = on_model_change
-
+    
+    # 绑定按钮事件
+    def on_download_click(e):
+        print("下载按钮被点击!")
+        page.snack_bar = ft.SnackBar(ft.Text("下载按钮被点击!"))
+        page.snack_bar.open = True
+        page.update()
+        show_download_dialog()
+    
+    def on_load_click(e):
+        print("加载按钮被点击!")
+        if local_model_dropdown.value:
+            load_model(local_model_dropdown.value)
+        else:
+            page.snack_bar = ft.SnackBar(ft.Text("请先选择模型"))
+            page.snack_bar.open = True
+            page.update()
+    
+    def on_delete_click(e):
+        print("删除按钮被点击!")
+        show_delete_dialog()
+    
+    download_btn.on_click = on_download_click
+    load_btn.on_click = on_load_click
+    delete_btn.on_click = on_delete_click
+    
     render_config_fields()
     load_latest_config()
+    
+    # 构建主界面
     page.add(
-        ft.Column([
-            current_config_text,
-            ft.Row([
-                ft.Column([
-                    model_dropdown,
-                    config_container,
-                    ft.Row([
-                        ft.ElevatedButton("保存为新配置", on_click=save_new_config),
-                        ft.ElevatedButton("清空输入", on_click=lambda e: clear_fields()),
-                    ], spacing=10),
-                    # 本地模型管理按钮
-                    ft.Row([
-                        ft.ElevatedButton("下载模型", on_click=lambda e: show_download_dialog()),
-                        ft.ElevatedButton("加载模型", on_click=lambda e: load_model(local_model_dropdown.value) if local_model_dropdown.value else None),
-                        ft.ElevatedButton("删除模型", on_click=lambda e: show_delete_dialog()),
-                    ], spacing=10) if model_dropdown.value == "local" else None,
-                ])
-            ], alignment=ft.MainAxisAlignment.START),
-            ft.Divider(),
-        ], spacing=12, horizontal_alignment=ft.CrossAxisAlignment.CENTER)
+        ft.Container(
+            content=ft.Column([
+                current_config_text,
+                ft.Container(
+                    content=ft.Column([
+                        model_dropdown,
+                        config_container,
+                        ft.Row([
+                            ft.ElevatedButton("保存为新配置", on_click=save_new_config),
+                            ft.ElevatedButton("清空输入", on_click=lambda e: clear_fields()),
+                        ], spacing=10),
+                    ], spacing=8),
+                    width=450,  # 固定宽度确保有足够空间
+                    padding=ft.Padding(10, 10, 10, 10)
+                ),
+                ft.Divider(),
+            ], spacing=12, horizontal_alignment=ft.CrossAxisAlignment.CENTER),
+            padding=ft.Padding(20, 20, 20, 20)
+        )
     )
