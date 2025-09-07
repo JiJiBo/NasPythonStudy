@@ -4,7 +4,6 @@ from openai import OpenAI
 
 from src.db.chat_db import ChatDB
 from src.db.llm_config_db import LLMConfigDB
-from src.utils.LocalModelManager import local_model_manager
 
 
 class AIRequestHandlerWithHistory:

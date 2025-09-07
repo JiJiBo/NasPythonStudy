@@ -1,7 +1,6 @@
 import flet as ft
-import threading
 
-from src.str.APP_CONFIG import APP_NAME, auto_load_local_model
+from src.str.APP_CONFIG import APP_NAME
 from src.ui.home.home_content import HomeContent
 from src.ui.home.mine_content import MineContent
 from src.ui.home.setting_content import SettingContent
@@ -13,22 +12,6 @@ def main_page(page: ft.Page, selected_index: int = 0):
     page.clean()
     page.title = APP_NAME
     page.theme_mode = ft.ThemeMode.LIGHT
-    
-    # 在后台线程中自动加载本地模型
-    def auto_load_model():
-        try:
-            print("🚀 开始自动加载本地模型...")
-            success = auto_load_local_model()
-            if success:
-                print("✅ 本地模型自动加载完成")
-                # 可以在这里添加成功提示
-            else:
-                print("ℹ️ 没有需要自动加载的本地模型")
-        except Exception as e:
-            print(f"❌ 自动加载模型时出错: {e}")
-    
-    # 启动自动加载线程
-    threading.Thread(target=auto_load_model, daemon=True).start()
 
     # 页面切换函数
     def change_page(e):
