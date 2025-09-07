@@ -58,13 +58,13 @@ class SettingContent(ft.Column):
                 subtitle=ft.Text("聊天会加载几条历史记录，当作记忆？", size=12, color=ft.Colors.GREY),
                 on_click=self._open_history_setting,
             ),
-            # 系统信息
-            ft.ListTile(
-                leading=ft.Icon(ft.Icons.INFO, size=30),
-                title=ft.Text("系统信息", weight=ft.FontWeight.BOLD),
-                subtitle=ft.Text("查看系统信息", size=12, color=ft.Colors.GREY),
-                on_click=self._open_system_info_dialog,
-            ),
+            # # 系统信息
+            # ft.ListTile(
+            #     leading=ft.Icon(ft.Icons.INFO, size=30),
+            #     title=ft.Text("系统信息", weight=ft.FontWeight.BOLD),
+            #     subtitle=ft.Text("查看系统信息", size=12, color=ft.Colors.GREY),
+            #     on_click=self._open_system_info_dialog,
+            # ),
         ]
         self.alignment = ft.MainAxisAlignment.START
         self.horizontal_alignment = ft.CrossAxisAlignment.CENTER
