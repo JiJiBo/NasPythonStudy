@@ -1,6 +1,0 @@
-{
-  "app_version": "0.1.1",
-  "app_update_url": "https://your-cdn.com/app_0.1.1.zip",
-  "app_size": 52428800,
-  "changelog": "新增一键更新功能，优化用户体验"
-}
