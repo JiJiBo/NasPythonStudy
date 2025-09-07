@@ -2,7 +2,6 @@ import flet as ft
 
 from src.str.APP_CONFIG import APP_NAME
 from src.ui.home.home_content import HomeContent
-from src.ui.home.mine_content import MineContent
 from src.ui.home.setting_content import SettingContent
 from src.ui.llm.llm_settings import llm_setting_page
 from src.ui.view.chat_view import ChatPullToRefresh
@@ -42,11 +41,6 @@ def main_page(page: ft.Page, selected_index: int = 0):
                 selected_icon=ft.Icons.HOME_OUTLINED
             ),
             ft.NavigationBarDestination(
-                icon=ft.Icons.NEAR_ME,
-                label="我的",
-                selected_icon=ft.Icons.NEAR_ME_OUTLINED
-            ),
-            ft.NavigationBarDestination(
                 icon=ft.Icons.SETTINGS,
                 label="设置",
                 selected_icon=ft.Icons.SETTINGS_OUTLINED
@@ -60,14 +54,13 @@ def main_page(page: ft.Page, selected_index: int = 0):
     )
 
     home_content = HomeContent(on_back=lambda a, selected_index=0: main_page(page, selected_index=selected_index))
-    my_content = MineContent()
     settings_content = SettingContent(
         page,
         on_back=lambda a, selected_index=0: main_page(page, selected_index=selected_index)
     )
     chat_content = ChatPullToRefresh(chat_id="comment")
     # 所有页面列表
-    pages = [home_content, my_content, settings_content, chat_content]
+    pages = [home_content, settings_content, chat_content]
 
     # 设置默认选中的底部标签
     try:

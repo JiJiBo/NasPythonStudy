@@ -3,6 +3,7 @@ import threading
 import subprocess
 import sys
 import os
+import webbrowser
 
 from src.str.APP_CONFIG import kvUtils
 from src.ui.llm.llm_settings import llm_setting_page
@@ -58,6 +59,20 @@ class SettingContent(ft.Column):
                 subtitle=ft.Text("聊天会加载几条历史记录，当作记忆？", size=12, color=ft.Colors.GREY),
                 on_click=self._open_history_setting,
             ),
+            # 捐款支持
+            ft.ListTile(
+                leading=ft.Icon(ft.Icons.FAVORITE, size=30, color=ft.Colors.RED),
+                title=ft.Text("支持开发者", weight=ft.FontWeight.BOLD),
+                subtitle=ft.Text("如果这个应用对您有帮助，请考虑支持一下", size=12, color=ft.Colors.GREY),
+                on_click=self._open_donation_dialog,
+            ),
+            # GitHub项目链接
+            ft.ListTile(
+                leading=ft.Icon(ft.Icons.CODE, size=30, color=ft.Colors.BLACK),
+                title=ft.Text("GitHub项目", weight=ft.FontWeight.BOLD),
+                subtitle=ft.Text("查看项目源码，给个Star支持一下", size=12, color=ft.Colors.GREY),
+                on_click=self._open_github_link,
+            ),
             # # 应用更新
             # ft.ListTile(
             #     leading=ft.Icon(ft.Icons.UPDATE, size=30),
@@ -102,6 +117,120 @@ class SettingContent(ft.Column):
         self.p.dialog = dlg_modal
         self.p.open(dlg_modal)
         self.p.update()
+
+    def _open_donation_dialog(self, e):
+        """打开捐款支持对话框"""
+        # 创建捐款信息内容
+        donation_content = ft.Column([
+            ft.Text("💝 支持开发者", size=20, weight=ft.FontWeight.BOLD, text_align=ft.TextAlign.CENTER),
+            ft.Divider(),
+            ft.Text("如果 Aithon 对您的学习有帮助，请考虑支持一下开发工作！", 
+                   size=14, text_align=ft.TextAlign.CENTER, color=ft.Colors.GREY_700),
+            ft.Container(height=20),
+            
+            # 支付宝二维码
+            ft.Container(
+                content=ft.Column([
+                    ft.Text("支付宝", size=16, weight=ft.FontWeight.BOLD),
+                    ft.Container(
+                        content=ft.Text("扫码支持", size=12, color=ft.Colors.WHITE),
+                        bgcolor=ft.Colors.BLUE_600,
+                        padding=ft.Padding(10, 5, 10, 5),
+                        border_radius=5,
+                        width=100,
+                        alignment=ft.alignment.center
+                    ),
+                     ft.Image("assets/coffee/支付宝.JPG", width=360, height=360, fit=ft.ImageFit.CONTAIN),
+                ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),
+                bgcolor=ft.Colors.WHITE,
+                border=ft.border.all(1, ft.Colors.GREY_300),
+                border_radius=10,
+                padding=20,
+                width=400,
+                height=480
+            ),
+            
+            ft.Container(height=20),
+            
+            # 微信二维码
+            ft.Container(
+                content=ft.Column([
+                    ft.Text("微信", size=16, weight=ft.FontWeight.BOLD),
+                    ft.Container(
+                        content=ft.Text("扫码支持", size=12, color=ft.Colors.WHITE),
+                        bgcolor=ft.Colors.GREEN_600,
+                        padding=ft.Padding(10, 5, 10, 5),
+                        border_radius=5,
+                        width=100,
+                        alignment=ft.alignment.center
+                    ),
+                     ft.Image("assets/coffee/微信.JPG", width=360, height=360, fit=ft.ImageFit.CONTAIN),
+                ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),
+                bgcolor=ft.Colors.WHITE,
+                border=ft.border.all(1, ft.Colors.GREY_300),
+                border_radius=10,
+                padding=20,
+                width=400,
+                height=480
+            ),
+            
+            ft.Container(height=20),
+            
+            # 感谢信息
+            ft.Container(
+                content=ft.Text("🙏 感谢您的支持！\n您的支持是我继续开发的动力", 
+                              size=14, text_align=ft.TextAlign.CENTER, color=ft.Colors.GREY_700),
+                bgcolor=ft.Colors.YELLOW_50,
+                border=ft.border.all(1, ft.Colors.YELLOW_200),
+                border_radius=10,
+                padding=15
+            ),
+            
+            ft.Container(height=10),
+            
+            # 其他支持方式
+            ft.Text("其他支持方式：", size=14, weight=ft.FontWeight.BOLD),
+            ft.Text("• 给项目点个 ⭐ Star", size=12, color=ft.Colors.GREY_700),
+            ft.Text("• 分享给更多需要的人", size=12, color=ft.Colors.GREY_700),
+            ft.Text("• 反馈使用体验和建议", size=12, color=ft.Colors.GREY_700),
+        ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, scroll=ft.ScrollMode.AUTO)
+        
+        # 创建对话框
+        dialog = ft.AlertDialog(
+            title=ft.Text("支持开发者", size=18, weight=ft.FontWeight.BOLD),
+            content=ft.Container(
+                content=donation_content,
+                width=600,
+                height=1000,
+                padding=10
+            ),
+            actions=[
+                ft.TextButton("关闭", on_click=lambda e: self.p.close(dialog))
+            ],
+            modal=True
+        )
+        
+        self.p.dialog = dialog
+        self.p.open(dialog)
+        self.p.update()
+
+    def _open_github_link(self, e):
+        """打开GitHub项目链接"""
+        github_url = "https://github.com/JiJiBo/NasPythonStudy.git"
+        try:
+            webbrowser.open(github_url)
+        except Exception as ex:
+            # 如果无法打开浏览器，显示错误信息
+            error_dialog = ft.AlertDialog(
+                title=ft.Text("打开链接失败"),
+                content=ft.Text(f"无法打开浏览器，请手动访问：\n{github_url}"),
+                actions=[
+                    ft.TextButton("确定", on_click=lambda e: self.p.close(error_dialog))
+                ]
+            )
+            self.p.dialog = error_dialog
+            self.p.open(error_dialog)
+            self.p.update()
 
     def _open_system_info_dialog(self, e):
         """打开系统信息对话框"""

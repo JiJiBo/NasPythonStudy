@@ -35,6 +35,29 @@ Aithon 是一个基于 Flet 框架开发的 Python 学习助手应用，旨在�
 flet build windows  
 ```
 
+## 支持开发者
+
+如果 Aithon 对您的学习有帮助，请考虑支持一下开发工作！
+
+### 💝 捐款支持
+
+您可以通过以下方式支持项目：
+
+#### 支付宝扫码支持
+![支付宝二维码](./assets/coffee/支付宝.JPG)
+
+#### 微信扫码支持
+![微信二维码](./assets/coffee/微信.JPG)
+
+### 🌟 其他支持方式
+
+- 给项目点个 ⭐ Star
+- 分享给更多需要的人
+- 反馈使用体验和建议
+- 提交 Issue 和 Pull Request
+
+您的支持是我继续开发的动力！🙏
+
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
