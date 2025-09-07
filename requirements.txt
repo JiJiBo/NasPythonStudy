@@ -1,0 +1,29 @@
+# AI 辅助 Python 学习应用依赖包
+
+# 核心框架
+flet==0.28.3
+flet-webview==0.1.0
+
+# AI 和机器学习
+llama-cpp-python
+openai
+
+# 网络和HTTP
+requests
+httpx
+
+# 数据处理
+PyYAML
+tqdm
+
+# 系统工具
+keyboard
+pyperclip
+aiofiles
+
+# 中文处理
+cn2an
+
+# 数据库（SQLite内置，无需额外安装）
+# 其他工具
+hashlib  # Python内置

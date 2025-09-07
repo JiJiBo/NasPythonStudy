@@ -1,6 +1,7 @@
 import flet as ft
 from src.db.llm_config_db import LLMConfigDB
 from src.str.APP_CONFIG import ai_handler
+from src.utils.LocalModelManager import local_model_manager
 
 
 def llm_setting_page(page: ft.Page, on_back=None):
@@ -77,6 +78,7 @@ def llm_setting_page(page: ft.Page, on_back=None):
             ft.dropdown.Option("deepseek"),
             ft.dropdown.Option("OpenAI"),
             ft.dropdown.Option("ollama"),
+            ft.dropdown.Option("local"),
         ],
         value=latest_config.get("provider") if latest_config else "deepseek",
         width=380,
@@ -87,6 +89,17 @@ def llm_setting_page(page: ft.Page, on_back=None):
     base_url_field = ft.TextField(label="Base URL", width=380, value="https://api.openai.com/v1")
     addr_field = ft.TextField(label="服务地址", width=380, value="http://localhost:11434")
     ollama_model_field = ft.TextField(label="模型名", width=380, value="")
+    
+    # 本地模型相关控件
+    local_model_dropdown = ft.Dropdown(
+        label="选择本地模型",
+        width=380,
+        options=[]
+    )
+    local_model_status = ft.Text("", size=12, color=ft.Colors.GREY)
+    local_model_progress = ft.ProgressBar(width=380, visible=False)
+    local_model_progress_text = ft.Text("", size=12)
+    
     config_container = ft.Column(spacing=8)
 
     # 渲染输入框
@@ -98,6 +111,78 @@ def llm_setting_page(page: ft.Page, on_back=None):
             config_container.controls.append(api_key_field)
         elif model_dropdown.value == "ollama":
             config_container.controls.extend([addr_field, ollama_model_field])
+        elif model_dropdown.value == "local":
+            config_container.controls.extend([
+                local_model_dropdown,
+                local_model_status,
+                local_model_progress,
+                local_model_progress_text
+            ])
+            refresh_local_model_list()
+
+    # 刷新本地模型列表
+    def refresh_local_model_list():
+        available_models = local_model_manager.get_available_models()
+        installed_models = local_model_manager.get_installed_models()
+        
+        local_model_dropdown.options.clear()
+        
+        for model_name, model_info in available_models.items():
+            is_installed = any(m.name == model_name for m in installed_models)
+            status = "✓ 已安装" if is_installed else "未安装"
+            size_mb = model_info.size // (1024 * 1024)
+            
+            local_model_dropdown.options.append(
+                ft.dropdown.Option(
+                    key=model_name,
+                    text=f"{model_name} ({size_mb}MB) - {status}",
+                    disabled=not is_installed
+                )
+            )
+        
+        # 设置当前选中的模型
+        current_status = local_model_manager.get_model_status()
+        if current_status["current_model"]:
+            local_model_dropdown.value = current_status["current_model"]
+        
+        update_local_model_status()
+        page.update()
+    
+    # 更新本地模型状态显示
+    def update_local_model_status():
+        current_status = local_model_manager.get_model_status()
+        if current_status["current_model"]:
+            local_model_status.value = f"当前使用: {current_status['current_model']}"
+            local_model_status.color = ft.Colors.GREEN
+        else:
+            local_model_status.value = "未选择模型"
+            local_model_status.color = ft.Colors.ORANGE
+    
+    # 下载模型
+    def download_model(model_name):
+        def progress_callback(name, progress, downloaded, total):
+            local_model_progress.visible = True
+            local_model_progress.value = progress / 100
+            local_model_progress_text.value = f"下载中: {progress:.1f}% ({downloaded//1024//1024}MB/{total//1024//1024}MB)"
+            page.update()
+        
+        def error_callback(error):
+            local_model_progress.visible = False
+            local_model_progress_text.value = f"下载失败: {error}"
+            page.update()
+        
+        local_model_manager.download_model(model_name, progress_callback, error_callback)
+    
+    # 加载模型
+    def load_model(model_name):
+        if local_model_manager.load_model(model_name):
+            update_local_model_status()
+            page.snack_bar = ft.SnackBar(ft.Text(f"已加载模型: {model_name}"))
+            page.snack_bar.open = True
+        else:
+            page.snack_bar = ft.SnackBar(ft.Text(f"加载模型失败: {model_name}"))
+            page.snack_bar.open = True
+        page.update()
 
     # 加载最新配置
     def load_latest_config():
@@ -110,6 +195,8 @@ def llm_setting_page(page: ft.Page, on_back=None):
             if model_dropdown.value == "ollama":
                 addr_field.value = latest.get("addr") or "http://localhost:11434"
                 ollama_model_field.value = latest.get("model") or ""
+            if model_dropdown.value == "local":
+                local_model_dropdown.value = latest.get("model") or ""
             selected_config_id["id"] = latest.get("id")
         else:
             clear_fields()
@@ -121,18 +208,32 @@ def llm_setting_page(page: ft.Page, on_back=None):
         base_url_field.value = "https://api.openai.com/v1"
         addr_field.value = "http://localhost:11434"
         ollama_model_field.value = ""
+        local_model_dropdown.value = ""
+        local_model_progress.visible = False
+        local_model_progress_text.value = ""
         page.update()
 
     # 保存新配置
     def save_new_config(e):
         selected = model_dropdown.value
+        model_name = None
+        
+        if selected == "ollama":
+            model_name = ollama_model_field.value
+        elif selected == "deepseek":
+            model_name = "deepseek-chat"
+        elif selected == "local":
+            model_name = local_model_dropdown.value
+            if model_name:
+                # 加载选中的本地模型
+                load_model(model_name)
+        
         new_id = db.save_config(
             provider=selected,
             api_key=api_key_field.value if selected in ["OpenAI", "deepseek"] else None,
             base_url=base_url_field.value if selected == "OpenAI" else None,
             addr=addr_field.value if selected == "ollama" else None,
-            model=ollama_model_field.value if selected == "ollama" else (
-                "deepseek-chat" if selected == "deepseek" else None),
+            model=model_name,
         )
         db.set_current_config(new_id)
         selected_config_id["id"] = new_id
@@ -147,6 +248,102 @@ def llm_setting_page(page: ft.Page, on_back=None):
         selected_config_id["id"] = None
         render_config_fields()
         load_latest_config()
+
+    # 显示下载对话框
+    def show_download_dialog():
+        available_models = local_model_manager.get_available_models()
+        installed_models = local_model_manager.get_installed_models()
+        installed_names = [m.name for m in installed_models]
+        
+        # 创建可下载的模型列表
+        download_options = []
+        for model_name, model_info in available_models.items():
+            if model_name not in installed_names:
+                size_mb = model_info.size // (1024 * 1024)
+                download_options.append(
+                    ft.dropdown.Option(
+                        key=model_name,
+                        text=f"{model_name} ({size_mb}MB) - {model_info.description}"
+                    )
+                )
+        
+        if not download_options:
+            page.snack_bar = ft.SnackBar(ft.Text("所有模型都已安装"))
+            page.snack_bar.open = True
+            page.update()
+            return
+        
+        download_dropdown = ft.Dropdown(
+            label="选择要下载的模型",
+            options=download_options,
+            width=400
+        )
+        
+        def confirm_download(e):
+            if download_dropdown.value:
+                download_model(download_dropdown.value)
+                page.close(dlg)
+        
+        dlg = ft.AlertDialog(
+            title=ft.Text("下载模型"),
+            content=download_dropdown,
+            actions=[
+                ft.TextButton("下载", on_click=confirm_download),
+                ft.TextButton("取消", on_click=lambda e: page.close(dlg))
+            ]
+        )
+        page.dialog = dlg
+        page.open(dlg)
+        page.update()
+    
+    # 显示删除对话框
+    def show_delete_dialog():
+        installed_models = local_model_manager.get_installed_models()
+        
+        if not installed_models:
+            page.snack_bar = ft.SnackBar(ft.Text("没有已安装的模型"))
+            page.snack_bar.open = True
+            page.update()
+            return
+        
+        delete_options = []
+        for model_info in installed_models:
+            size_mb = model_info.size // (1024 * 1024)
+            delete_options.append(
+                ft.dropdown.Option(
+                    key=model_info.name,
+                    text=f"{model_info.name} ({size_mb}MB)"
+                )
+            )
+        
+        delete_dropdown = ft.Dropdown(
+            label="选择要删除的模型",
+            options=delete_options,
+            width=400
+        )
+        
+        def confirm_delete(e):
+            if delete_dropdown.value:
+                if local_model_manager.delete_model(delete_dropdown.value):
+                    page.snack_bar = ft.SnackBar(ft.Text(f"已删除模型: {delete_dropdown.value}"))
+                    refresh_local_model_list()
+                else:
+                    page.snack_bar = ft.SnackBar(ft.Text("删除失败"))
+                page.snack_bar.open = True
+                page.close(dlg)
+                page.update()
+        
+        dlg = ft.AlertDialog(
+            title=ft.Text("删除模型"),
+            content=delete_dropdown,
+            actions=[
+                ft.TextButton("删除", on_click=confirm_delete),
+                ft.TextButton("取消", on_click=lambda e: page.close(dlg))
+            ]
+        )
+        page.dialog = dlg
+        page.open(dlg)
+        page.update()
 
     model_dropdown.on_change = on_model_change
 
@@ -163,6 +360,12 @@ def llm_setting_page(page: ft.Page, on_back=None):
                         ft.ElevatedButton("保存为新配置", on_click=save_new_config),
                         ft.ElevatedButton("清空输入", on_click=lambda e: clear_fields()),
                     ], spacing=10),
+                    # 本地模型管理按钮
+                    ft.Row([
+                        ft.ElevatedButton("下载模型", on_click=lambda e: show_download_dialog()),
+                        ft.ElevatedButton("加载模型", on_click=lambda e: load_model(local_model_dropdown.value) if local_model_dropdown.value else None),
+                        ft.ElevatedButton("删除模型", on_click=lambda e: show_delete_dialog()),
+                    ], spacing=10) if model_dropdown.value == "local" else None,
                 ])
             ], alignment=ft.MainAxisAlignment.START),
             ft.Divider(),

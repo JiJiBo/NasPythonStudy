@@ -17,6 +17,9 @@ dependencies = [
     "openai",
     "pyperclip",
     "tqdm",
+    "llama-cpp-python",
+    "aiofiles",
+    "hashlib",
 ]
 
 [tool.flet]

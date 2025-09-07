@@ -4,6 +4,7 @@ from openai import OpenAI
 
 from src.db.chat_db import ChatDB
 from src.db.llm_config_db import LLMConfigDB
+from src.utils.LocalModelManager import local_model_manager
 
 
 class AIRequestHandlerWithHistory:
@@ -158,6 +159,7 @@ class AIRequestHandler:
         self.base_url = base_url.rstrip("/") if base_url else None
         self.api_key = api_key
         self.valid = valid
+        self.is_local_model = provider == "local"
 
         self._init_client()
 
@@ -172,6 +174,9 @@ class AIRequestHandler:
             self.deepseek_url = "https://api.deepseek.com/v1/chat/completions"
             self.client = None
         elif self.provider.lower() == "ollama":
+            self.client = None
+        elif self.provider.lower() == "local":
+            # 本地模型不需要初始化client，直接使用local_model_manager
             self.client = None
         else:
             self.client = None
@@ -207,6 +212,14 @@ class AIRequestHandler:
                 api_key=config.get("api_key"),
                 valid=True
             )
+        elif provider == "local":
+            return cls(
+                provider=config.get("provider"),
+                model=config.get("model"),
+                base_url=None,
+                api_key=None,
+                valid=True
+            )
 
     def refresh_config(self):
         db = LLMConfigDB()
@@ -231,12 +244,23 @@ class AIRequestHandler:
             self.base_url = config.get("base_url").rstrip("/") if config.get("base_url") else None
         elif provider == "ollama":
             self.base_url = config.get("addr").rstrip("/") if config.get("addr") else None
+        elif provider == "local":
+            self.base_url = None
         self._init_client()
 
     # ---------------- 单次响应（带历史） ----------------
     def get_response_with_history(self, messages):
         try:
-            if self.provider == "ollama":
+            if self.provider == "local":
+                # 本地模型处理
+                if not local_model_manager.current_model:
+                    return "错误: 没有加载本地模型，请先在设置中选择并下载模型"
+                
+                # 将messages转换为单个prompt
+                prompt = self._messages_to_prompt(messages)
+                return local_model_manager.get_response(prompt)
+            
+            elif self.provider == "ollama":
                 url = f"{self.base_url}/api/chat"
                 payload = {"model": self.model, "messages": messages, "stream": False}
                 resp = requests.post(url, json=payload)
@@ -318,5 +342,17 @@ class AIRequestHandler:
                 error_callback(str(e))
             else:
                 raise e
+    
+    def _messages_to_prompt(self, messages):
+        """将messages格式转换为单个prompt字符串"""
+        prompt_parts = []
+        for msg in messages:
+            role = msg.get("role", "")
+            content = msg.get("content", "")
+            if role == "user":
+                prompt_parts.append(f"用户: {content}")
+            elif role == "assistant":
+                prompt_parts.append(f"助手: {content}")
+        return "\n\n".join(prompt_parts)
 
 

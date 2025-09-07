@@ -48,8 +48,15 @@ class SettingContent(ft.Column):
             ft.ListTile(
                 leading=ft.Icon(ft.Icons.BRANDING_WATERMARK, size=30),
                 title=ft.Text("大模型设置", weight=ft.FontWeight.BOLD),
-                subtitle=ft.Text("配置OpenAI、DeepSeek、Ollama等LLM服务", size=12, color=ft.Colors.GREY),
+                subtitle=ft.Text("配置OpenAI、DeepSeek、Ollama、本地模型等LLM服务", size=12, color=ft.Colors.GREY),
                 on_click=lambda e: llm_setting_page(self.p, on_back=self.on_back),
+            ),
+            # 本地模型管理
+            ft.ListTile(
+                leading=ft.Icon(ft.Icons.STORAGE, size=30),
+                title=ft.Text("本地模型管理", weight=ft.FontWeight.BOLD),
+                subtitle=ft.Text("下载、管理和切换本地AI模型", size=12, color=ft.Colors.GREY),
+                on_click=self._open_local_model_manager,
             ),
             # 聊天记录历史条数设置
             ft.ListTile(
@@ -157,3 +164,148 @@ class SettingContent(ft.Column):
 
         # 启动后台线程
         threading.Thread(target=get_info, daemon=True).start()
+    
+    def _open_local_model_manager(self, e):
+        """打开本地模型管理页面"""
+        from src.utils.LocalModelManager import local_model_manager
+        
+        # 创建模型管理对话框
+        def create_model_list():
+            available_models = local_model_manager.get_available_models()
+            installed_models = local_model_manager.get_installed_models()
+            installed_names = [m.name for m in installed_models]
+            current_model = local_model_manager.current_model
+            
+            model_list = []
+            for model_name, model_info in available_models.items():
+                is_installed = model_name in installed_names
+                is_current = model_name == current_model
+                size_mb = model_info.size // (1024 * 1024)
+                
+                status_text = ""
+                if is_current:
+                    status_text = "✓ 当前使用"
+                elif is_installed:
+                    status_text = "✓ 已安装"
+                else:
+                    status_text = "未安装"
+                
+                model_list.append(
+                    ft.ListTile(
+                        leading=ft.Icon(ft.Icons.MEMORY, size=24),
+                        title=ft.Text(model_name, weight=ft.FontWeight.BOLD),
+                        subtitle=ft.Text(f"{size_mb}MB - {model_info.description} - {status_text}", 
+                                       size=12, color=ft.Colors.GREY),
+                        trailing=ft.Row([
+                            ft.ElevatedButton(
+                                "下载" if not is_installed else "加载" if not is_current else "已加载",
+                                on_click=lambda e, name=model_name: self._handle_model_action(name, is_installed, is_current),
+                                disabled=is_current
+                            ),
+                            ft.IconButton(
+                                ft.Icons.DELETE,
+                                on_click=lambda e, name=model_name: self._delete_model(name),
+                                disabled=not is_installed or is_current,
+                                tooltip="删除模型"
+                            )
+                        ], spacing=5),
+                        content_padding=ft.Padding(5, 5, 5, 5)
+                    )
+                )
+            
+            return model_list
+        
+        def refresh_dialog():
+            dialog.content = ft.Container(
+                content=ft.Column([
+                    ft.Text("本地模型管理", size=18, weight=ft.FontWeight.BOLD),
+                    ft.Divider(),
+                    ft.Column(create_model_list(), scroll=ft.ScrollMode.AUTO)
+                ]),
+                padding=20,
+                width=600,
+                height=500
+            )
+            self.p.update()
+        
+        dialog = ft.AlertDialog(
+            title=ft.Text("本地模型管理"),
+            content=ft.Container(
+                content=ft.Column([
+                    ft.Text("正在加载模型列表...", size=14, color=ft.Colors.BLUE)
+                ]),
+                padding=20,
+                width=600,
+                height=500
+            ),
+            actions=[
+                ft.TextButton("刷新", on_click=lambda e: refresh_dialog()),
+                ft.TextButton("关闭", on_click=lambda e: self.p.close(dialog))
+            ]
+        )
+        
+        self.p.dialog = dialog
+        self.p.open(dialog)
+        self.p.update()
+        
+        # 延迟加载模型列表
+        def load_models():
+            import time
+            time.sleep(0.5)  # 短暂延迟让用户看到加载状态
+            self.p.run_thread(refresh_dialog)
+        
+        threading.Thread(target=load_models, daemon=True).start()
+    
+    def _handle_model_action(self, model_name, is_installed, is_current):
+        """处理模型操作（下载或加载）"""
+        from src.utils.LocalModelManager import local_model_manager
+        
+        if not is_installed:
+            # 下载模型
+            def progress_callback(name, progress, downloaded, total):
+                self.p.snack_bar = ft.SnackBar(
+                    ft.Text(f"下载 {name}: {progress:.1f}% ({downloaded//1024//1024}MB/{total//1024//1024}MB)")
+                )
+                self.p.snack_bar.open = True
+                self.p.update()
+            
+            def error_callback(error):
+                self.p.snack_bar = ft.SnackBar(ft.Text(f"下载失败: {error}"))
+                self.p.snack_bar.open = True
+                self.p.update()
+            
+            local_model_manager.download_model(model_name, progress_callback, error_callback)
+        else:
+            # 加载模型
+            if local_model_manager.load_model(model_name):
+                self.p.snack_bar = ft.SnackBar(ft.Text(f"已加载模型: {model_name}"))
+            else:
+                self.p.snack_bar = ft.SnackBar(ft.Text(f"加载模型失败: {model_name}"))
+            self.p.snack_bar.open = True
+            self.p.update()
+    
+    def _delete_model(self, model_name):
+        """删除模型"""
+        from src.utils.LocalModelManager import local_model_manager
+        
+        def confirm_delete(e):
+            if local_model_manager.delete_model(model_name):
+                self.p.snack_bar = ft.SnackBar(ft.Text(f"已删除模型: {model_name}"))
+            else:
+                self.p.snack_bar = ft.SnackBar(ft.Text("删除失败"))
+            self.p.snack_bar.open = True
+            self.p.close(confirm_dlg)
+            self.p.update()
+        
+        confirm_dlg = ft.AlertDialog(
+            title=ft.Text("确认删除"),
+            content=ft.Text(f"确定要删除模型 {model_name} 吗？此操作不可恢复。"),
+            actions=[
+                ft.TextButton("删除", on_click=confirm_delete),
+                ft.TextButton("取消", on_click=lambda e: self.p.close(confirm_dlg))
+            ]
+        )
+        
+        self.p.dialog = confirm_dlg
+        self.p.open(confirm_dlg)
+        self.p.update()

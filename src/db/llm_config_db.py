@@ -132,3 +132,20 @@ class LLMConfigDB:
         c.execute("DELETE FROM llm_config WHERE id=?", (config_id,))
         conn.commit()
         conn.close()
+    
+    def get_configs_by_provider(self, provider):
+        """根据provider获取所有配置"""
+        conn = sqlite3.connect(self.db_path)
+        c = conn.cursor()
+        c.execute("""
+            SELECT id, provider, model, base_url, api_key, addr
+            FROM llm_config
+            WHERE provider=?
+            ORDER BY id DESC
+        """, (provider,))
+        rows = c.fetchall()
+        conn.close()
+        return [
+            {"id": r[0], "provider": r[1], "model": r[2], "base_url": r[3], "api_key": r[4], "addr": r[5]}
+            for r in rows
+        ]
