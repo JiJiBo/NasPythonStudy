@@ -363,42 +363,33 @@ class LocalModelManager:
         
         # 如果已经测试过，直接返回缓存结果
         if model_name in self.working_mirrors:
+            print(f"使用缓存的镜像源: {model_name}")
             return self.working_mirrors[model_name]
         
         model_info = self.AVAILABLE_MODELS[model_name]
         filename = f"qwen2.5-coder-1.5b-instruct-{model_name.split('-')[-1]}.gguf"
         
-        # 按优先级测试镜像源
+        # 按优先级测试镜像源（简化版本，避免卡住）
         priority_order = ["hf-mirror", "modelscope-direct", "modelscope-cdn", "huggingface", "modelscope", "huggingface-mirror", "hf-mirror-cn"]
         
+        # 直接使用第一个可用的镜像源，不进行网络测试
         for mirror_name in priority_order:
             if mirror_name not in self.MIRROR_SOURCES:
                 continue
                 
-            try:
-                base_url = self.MIRROR_SOURCES[mirror_name]
-                
-                if mirror_name == "modelscope":
-                    test_url = f"{base_url}{filename}"
-                elif mirror_name == "modelscope-direct":
-                    test_url = f"{base_url}{filename}"
-                else:
-                    test_url = f"{base_url}{filename}"
-                
-                # 快速测试
-                headers = {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-                }
-                response = requests.get(test_url, headers=headers, timeout=5, stream=True)
-                
-                if response.status_code in [200, 206]:
-                    self.working_mirrors[model_name] = test_url
-                    print(f"选择镜像源: {mirror_name}")
-                    return test_url
-                    
-            except Exception as e:
-                print(f"镜像源 {mirror_name} 测试失败: {str(e)}")
-                continue
+            base_url = self.MIRROR_SOURCES[mirror_name]
+            
+            if mirror_name == "modelscope":
+                test_url = f"{base_url}{filename}"
+            elif mirror_name == "modelscope-direct":
+                test_url = f"{base_url}{filename}"
+            else:
+                test_url = f"{base_url}{filename}"
+            
+            # 直接使用第一个镜像源，避免网络测试卡住
+            self.working_mirrors[model_name] = test_url
+            print(f"选择镜像源: {mirror_name} (跳过测试)")
+            return test_url
         
         # 如果所有镜像源都失败，返回原始URL
         print("所有镜像源都不可用，使用原始URL")

@@ -178,57 +178,174 @@ class SettingContent(ft.Column):
         """打开本地模型管理页面"""
         from src.utils.LocalModelManager import local_model_manager
         
-        # 存储每个模型的进度条和状态文本
-        model_progress_bars = {}
-        model_status_texts = {}
-        model_buttons = {}
+        # 存储每个模型的进度条和状态文本（改为实例变量）
+        if not hasattr(self, 'model_progress_bars'):
+            self.model_progress_bars = {}
+        if not hasattr(self, 'model_status_texts'):
+            self.model_status_texts = {}
+        if not hasattr(self, 'model_buttons'):
+            self.model_buttons = {}
+        
+        # 节流机制
+        last_update_times = {}
         
         # 订阅下载事件
         def on_download_status_changed(data):
+            print(f"收到下载状态变化事件: {data['model_name']}")
             model_name = data["model_name"]
             status_data = data["status"]
             
-            if model_name in model_progress_bars:
+            if model_name in self.model_progress_bars:
+                # 节流：每0.1秒更新一次UI（减少延迟）
+                import time
+                now = time.time()
+                if model_name in last_update_times and now - last_update_times[model_name] < 0.1:
+                    print(f"跳过UI更新（节流）: {model_name}")
+                    return
+                last_update_times[model_name] = now
+                
                 def update_ui():
                     try:
-                        progress_bar = model_progress_bars[model_name]
-                        status_text = model_status_texts[model_name]
-                        button = model_buttons[model_name]
+                        print(f"开始更新UI: {model_name}")
+                        progress_bar = self.model_progress_bars[model_name]
+                        status_text = self.model_status_texts[model_name]
+                        button = self.model_buttons[model_name]
                         
-                        if hasattr(progress_bar, 'page') and progress_bar.page is not None:
+                        # 检查控件是否存在且有效
+                        if progress_bar and status_text and button:
                             if status_data["status"] == "downloading":
                                 progress_bar.visible = True
                                 progress_bar.value = status_data["progress"] / 100
                                 status_text.value = f"下载中: {status_data['progress']:.1f}% ({status_data['downloaded_size']//1024//1024}MB/{status_data['total_size']//1024//1024}MB)"
+                                status_text.color = ft.Colors.BLUE
                                 button.text = "暂停"
                                 button.disabled = False
                             elif status_data["status"] == "paused":
                                 progress_bar.visible = True
                                 progress_bar.value = status_data["progress"] / 100
                                 status_text.value = f"已暂停: {status_data['progress']:.1f}%"
+                                status_text.color = ft.Colors.ORANGE
                                 button.text = "恢复"
                                 button.disabled = False
                             elif status_data["status"] == "completed":
                                 progress_bar.visible = False
                                 status_text.value = "✓ 下载完成"
+                                status_text.color = ft.Colors.GREEN
                                 button.text = "已安装"
                                 button.disabled = True
                             elif status_data["status"] == "error":
                                 progress_bar.visible = False
                                 status_text.value = f"下载失败: {status_data['error_message']}"
+                                status_text.color = ft.Colors.RED
                                 button.text = "重试"
                                 button.disabled = False
+                            
+                            # 更新所有控件
+                            progress_bar.update()
+                            status_text.update()
+                            button.update()
+                            
+                            # 更新父容器确保UI刷新
+                            if hasattr(self, '_model_list_column') and self._model_list_column:
+                                self._model_list_column.update()
+                            
+                            print(f"✅ UI更新完成: {model_name} - {status_data['status']} - {status_data['progress']:.1f}%")
+                    except Exception as e:
+                        print(f"❌ UI更新错误: {e}")
+                
+                # 使用try-catch包装，避免阻塞
+                try:
+                    self.p.run_thread(update_ui)
+                    print(f"UI更新线程已启动: {model_name}")
+                except Exception as e:
+                    print(f"启动UI更新线程失败: {e}")
+                    # 如果run_thread失败，直接调用update_ui
+                    try:
+                        update_ui()
+                    except Exception as e2:
+                        print(f"直接UI更新也失败: {e2}")
+        
+        # 取消之前的订阅（如果有的话）
+        if hasattr(self, '_download_callback'):
+            download_manager.unsubscribe_download_events(self._download_callback)
+        
+        # 保存回调引用并订阅下载事件
+        self._download_callback = on_download_status_changed
+        download_manager.subscribe_download_events(on_download_status_changed)
+        
+        # 状态同步函数
+        def sync_download_status():
+            """同步下载状态到UI"""
+            print("同步下载状态到UI")
+            for model_name in self.model_progress_bars.keys():
+                print(model_name,self.model_progress_bars.keys())
+                try:
+                    progress_bar = self.model_progress_bars[model_name]
+                    status_text = self.model_status_texts[model_name]
+                    button = self.model_buttons[model_name]
+                    status = download_manager.get_download_status(model_name)
+                    print(f"模型 {model_name} 的下载状态: {status}")
+                    
+                    if status and progress_bar and status_text and button:
+                        if status.status == "downloading":
+                            progress_bar.visible = True
+                            progress_bar.value = status.progress / 100
+                            status_text.value = f"下载中: {status.progress:.1f}% ({status.downloaded_size//1024//1024}MB/{status.total_size//1024//1024}MB)"
+                            status_text.color = ft.Colors.BLUE
+                            button.text = "暂停"
+                            button.disabled = False
+                        elif status.status == "paused":
+                            progress_bar.visible = True
+                            progress_bar.value = status.progress / 100
+                            status_text.value = f"已暂停: {status.progress:.1f}%"
+                            status_text.color = ft.Colors.ORANGE
+                            button.text = "恢复"
+                            button.disabled = False
+                        elif status.status == "completed":
+                            progress_bar.visible = False
+                            status_text.value = "✓ 下载完成"
+                            status_text.color = ft.Colors.GREEN
+                            button.text = "已安装"
+                            button.disabled = True
+                        elif status.status == "error":
+                            progress_bar.visible = False
+                            status_text.value = f"下载失败: {status.error_message}"
+                            status_text.color = ft.Colors.RED
+                            button.text = "重试"
+                            button.disabled = False
+                        
+                        # 更新所有控件
+                        progress_bar.update()
+                        status_text.update()
+                        button.update()
+                        
+                        print(f"🔄 同步状态: {model_name} - {status.status} - {status.progress:.1f}%")
+                    else:
+                        # 没有下载状态，设置为默认状态
+                        print(f"模型 {model_name} 没有下载状态，设置为默认状态")
+                        if progress_bar and status_text and button:
+                            progress_bar.visible = False
+                            progress_bar.value = 0
+                            status_text.value = "未下载"
+                            status_text.color = ft.Colors.GREY
+                            button.text = "下载"
+                            button.disabled = False
                             
                             progress_bar.update()
                             status_text.update()
                             button.update()
-                    except Exception as e:
-                        print(f"UI更新错误: {e}")
-                
-                self.p.run_thread(update_ui)
+                            
+                            print(f"🔄 设置默认状态: {model_name}")
+                except Exception as e:
+                    print(f"❌ 同步状态错误 {model_name}: {e}")
+            
+            # 更新父容器确保UI刷新
+            if hasattr(self, '_model_list_column') and self._model_list_column:
+                self._model_list_column.update()
+                print("✅ 父容器已更新")
         
-        # 订阅下载事件
-        download_manager.subscribe_download_events(on_download_status_changed)
+        # 保存同步函数引用，供其他方法使用
+        self._sync_download_status = sync_download_status
         
         # 创建模型管理对话框
         def create_model_list():
@@ -278,10 +395,11 @@ class SettingContent(ft.Column):
                 display_name = model_name.replace("qwen2.5-coder-1.5b-", "Qwen-")
                 short_description = model_info.description[:30] + "..." if len(model_info.description) > 30 else model_info.description
                 
-                # 创建进度条（初始隐藏）
+                # 创建进度条（根据下载状态决定是否显示）
                 progress_bar = ft.ProgressBar(
                     width=200,
-                    visible=False,
+                    visible=download_status is not None and download_status.status in ["downloading", "paused"],
+                    value=(download_status.progress / 100) if download_status else 0,
                     color=ft.Colors.BLUE
                 )
                 
@@ -306,10 +424,10 @@ class SettingContent(ft.Column):
                 
                 download_btn.on_click = create_click_handler(model_name, is_installed, is_current, progress_bar, status_text_widget, download_btn)
                 
-                # 存储引用
-                model_progress_bars[model_name] = progress_bar
-                model_status_texts[model_name] = status_text_widget
-                model_buttons[model_name] = download_btn
+                # 存储引用到实例变量
+                self.model_progress_bars[model_name] = progress_bar
+                self.model_status_texts[model_name] = status_text_widget
+                self.model_buttons[model_name] = download_btn
                 
                 model_list.append(
                     ft.ListTile(
@@ -337,12 +455,18 @@ class SettingContent(ft.Column):
             return model_list
         
         def refresh_dialog():
+            # 创建模型列表
+            model_list = create_model_list()
+            
+            # 创建模型列表容器并保存引用
+            self._model_list_column = ft.Column(model_list, scroll=ft.ScrollMode.AUTO)
+            
             dialog.content = ft.Container(
                 content=ft.Column([
                     ft.Text("本地模型管理", size=18, weight=ft.FontWeight.BOLD),
                     ft.Divider(),
                     ft.Container(
-                        content=ft.Column(create_model_list(), scroll=ft.ScrollMode.AUTO),
+                        content=self._model_list_column,
                         width=700,
                         height=400
                     )
@@ -352,6 +476,14 @@ class SettingContent(ft.Column):
                 height=500
             )
             self.p.update()
+            
+            # 刷新后同步下载状态
+            def sync_after_refresh():
+                import time
+                time.sleep(0.2)  # 等待UI更新完成
+                sync_download_status()
+            
+            self.p.run_thread(sync_after_refresh)
         
         dialog = ft.AlertDialog(
             title=ft.Text("本地模型管理"),
@@ -365,7 +497,7 @@ class SettingContent(ft.Column):
             ),
             actions=[
                 ft.TextButton("刷新", on_click=lambda e: refresh_dialog()),
-                ft.TextButton("关闭", on_click=lambda e: self.p.close(dialog))
+                ft.TextButton("关闭", on_click=lambda e: self._close_model_dialog(dialog))
             ]
         )
         
@@ -373,147 +505,150 @@ class SettingContent(ft.Column):
         self.p.open(dialog)
         self.p.update()
         
-        # 延迟加载模型列表
+        # 延迟加载模型列表，确保对话框完全打开
         def load_models():
             import time
-            time.sleep(0.5)  # 短暂延迟让用户看到加载状态
+            time.sleep(0.8)  # 增加延迟确保对话框完全打开
             self.p.run_thread(refresh_dialog)
         
         threading.Thread(target=load_models, daemon=True).start()
+    
+    def _close_model_dialog(self, dialog):
+        """关闭模型管理对话框并取消订阅"""
+        # 取消下载事件订阅
+        if hasattr(self, '_download_callback'):
+            download_manager.unsubscribe_download_events(self._download_callback)
+            delattr(self, '_download_callback')
+        
+        # 关闭对话框
+        self.p.close(dialog)
     
     def _handle_model_action(self, model_name, is_installed, is_current, progress_bar=None, status_text=None, button=None):
         """处理模型操作（下载或加载）"""
         from src.utils.LocalModelManager import local_model_manager
         
-        if not is_installed:
-            # 下载模型
-            def progress_callback(name, progress, downloaded, total):
-                # 使用page.run_thread在主线程中更新UI
-                def update_ui():
-                    try:
-                        # 更新进度条
-                        if progress_bar and hasattr(progress_bar, 'page') and progress_bar.page is not None:
-                            progress_bar.visible = True
-                            progress_bar.value = progress / 100
-                            progress_bar.update()
-                        
-                        # 更新状态文本
-                        if status_text and hasattr(status_text, 'page') and status_text.page is not None:
-                            status_text.value = f"下载中: {progress:.1f}% ({downloaded//1024//1024}MB/{total//1024//1024}MB)"
-                            status_text.color = ft.Colors.BLUE
-                            status_text.update()
-                    except Exception as e:
-                        print(f"UI更新错误: {e}")
+        # 检查当前下载状态
+        download_status = download_manager.get_download_status(model_name)
+        
+        if download_status:
+            # 有下载状态，根据状态执行操作
+            if download_status.status == "downloading":
+                # 暂停下载
+                download_manager.pause_download(model_name)
+                self.p.snack_bar = ft.SnackBar(
+                    content=ft.Text(f"已暂停下载 {model_name}"),
+                    bgcolor=ft.Colors.ORANGE
+                )
+                self.p.snack_bar.open = True
+                self.p.update()
                 
-                # 在主线程中更新UI
-                self.p.run_thread(update_ui)
+            elif download_status.status == "paused":
+                # 恢复下载
+                success = download_manager.resume_download(model_name)
+                if success:
+                    self.p.snack_bar = ft.SnackBar(
+                        content=ft.Text(f"恢复下载 {model_name}"),
+                        bgcolor=ft.Colors.BLUE
+                    )
+                    self.p.snack_bar.open = True
+                    self.p.update()
+                    
+                    # 恢复下载后立即同步状态
+                    def sync_after_resume():
+                        import time
+                        time.sleep(0.1)  # 等待状态更新
+                        if hasattr(self, '_sync_download_status'):
+                            self._sync_download_status()
+                    
+                    self.p.run_thread(sync_after_resume)
+                else:
+                    self.p.snack_bar = ft.SnackBar(
+                        content=ft.Text(f"恢复下载失败 {model_name}"),
+                        bgcolor=ft.Colors.RED
+                    )
+                    self.p.snack_bar.open = True
+                    self.p.update()
                 
-                # 控制台输出
-                print(f"下载 {name}: {progress:.1f}% ({downloaded//1024//1024}MB/{total//1024//1024}MB)")
-            
-            def error_callback(error):
-                print(f"下载失败: {error}")
-                
-                # 使用page.run_thread在主线程中更新UI
-                def update_ui():
-                    try:
-                        # 隐藏进度条
-                        if progress_bar and hasattr(progress_bar, 'page') and progress_bar.page is not None:
-                            progress_bar.visible = False
-                            progress_bar.update()
-                        
-                        # 更新状态文本
-                        if status_text and hasattr(status_text, 'page') and status_text.page is not None:
-                            status_text.value = f"下载失败: {error}"
-                            status_text.color = ft.Colors.RED
-                            status_text.update()
-                        
-                        # 恢复按钮
-                        if button and hasattr(button, 'page') and button.page is not None:
-                            button.text = "下载"
-                            button.disabled = False
-                            button.update()
-                        
-                        self.p.snack_bar = ft.SnackBar(ft.Text(f"下载失败: {error}"))
+            elif download_status.status == "error":
+                # 重试下载
+                download_manager.cancel_download(model_name)
+                # 获取下载URL并重新开始
+                available_models = local_model_manager.get_available_models()
+                if model_name in available_models:
+                    model_info = available_models[model_name]
+                    download_url = local_model_manager.get_best_mirror_url(model_name)
+                    success = download_manager.start_download(model_name, download_url, model_info.size)
+                    if success:
+                        self.p.snack_bar = ft.SnackBar(
+                            content=ft.Text(f"重新开始下载 {model_name}"),
+                            bgcolor=ft.Colors.BLUE
+                        )
                         self.p.snack_bar.open = True
                         self.p.update()
-                    except Exception as e:
-                        print(f"错误回调UI更新错误: {e}")
+        elif not is_installed:
+            # 开始新下载
+            print(f"开始下载模型: {model_name}")
+            available_models = local_model_manager.get_available_models()
+            if model_name in available_models:
+                model_info = available_models[model_name]
+                print(f"获取模型信息: {model_name}, 大小: {model_info.size//1024//1024}MB")
                 
-                # 在主线程中更新UI
-                self.p.run_thread(update_ui)
-            
-            def success_callback():
-                # 使用page.run_thread在主线程中更新UI
-                def update_ui():
-                    try:
-                        # 隐藏进度条
-                        if progress_bar and hasattr(progress_bar, 'page') and progress_bar.page is not None:
-                            progress_bar.visible = False
-                            progress_bar.update()
-                        
-                        # 更新状态文本
-                        if status_text and hasattr(status_text, 'page') and status_text.page is not None:
-                            status_text.value = "✓ 已安装"
-                            status_text.color = ft.Colors.GREEN
-                            status_text.update()
-                        
-                        # 更新按钮
-                        if button and hasattr(button, 'page') and button.page is not None:
-                            button.text = "加载"
-                            button.disabled = False
-                            button.update()
-                        
-                        self.p.snack_bar = ft.SnackBar(ft.Text(f"模型 {model_name} 下载完成"))
-                        self.p.snack_bar.open = True
-                        self.p.update()
-                    except Exception as e:
-                        print(f"成功回调UI更新错误: {e}")
+                download_url = local_model_manager.get_best_mirror_url(model_name)
+                print(f"获取下载URL: {download_url}")
                 
-                # 在主线程中更新UI
-                self.p.run_thread(update_ui)
-            
-            # 显示开始下载的状态
-            try:
-                if progress_bar and hasattr(progress_bar, 'page') and progress_bar.page is not None:
-                    progress_bar.visible = True
-                    progress_bar.value = 0
-                    progress_bar.update()
+                try:
+                    success = download_manager.start_download(model_name, download_url, model_info.size)
+                    print(f"启动下载结果: {success}")
+                except Exception as e:
+                    print(f"启动下载异常: {e}")
+                    success = False
                 
-                if status_text and hasattr(status_text, 'page') and status_text.page is not None:
-                    status_text.value = "准备下载..."
-                    status_text.color = ft.Colors.ORANGE
-                    status_text.update()
-                
-                if button and hasattr(button, 'page') and button.page is not None:
-                    button.text = "下载中..."
-                    button.disabled = True
-                    button.update()
-            except Exception as e:
-                print(f"开始下载UI更新错误: {e}")
-            
-            # 开始下载
-            success = local_model_manager.download_model(model_name, progress_callback, error_callback, success_callback)
-            if not success:
-                error_callback("下载启动失败")
+                if success:
+                    self.p.snack_bar = ft.SnackBar(
+                        content=ft.Text(f"开始下载 {model_name}"),
+                        bgcolor=ft.Colors.BLUE
+                    )
+                    self.p.snack_bar.open = True
+                    self.p.update()
+                    
+                    # 下载开始后立即同步状态
+                    def sync_after_start():
+                        import time
+                        time.sleep(0.1)  # 等待下载状态创建
+                        if hasattr(self, '_sync_download_status'):
+                            self._sync_download_status()
+                    
+                    self.p.run_thread(sync_after_start)
+                else:
+                    self.p.snack_bar = ft.SnackBar(
+                        content=ft.Text(f"启动下载失败 {model_name}"),
+                        bgcolor=ft.Colors.RED
+                    )
+                    self.p.snack_bar.open = True
+                    self.p.update()
         else:
             # 加载模型
-            if local_model_manager.load_model(model_name):
-                if status_text:
-                    status_text.value = "✓ 当前使用"
-                    status_text.color = ft.Colors.GREEN
-                    status_text.update()
+            if not is_current:
+                self.p.snack_bar = ft.SnackBar(
+                    content=ft.Text(f"正在加载模型 {model_name}..."),
+                    bgcolor=ft.Colors.BLUE
+                )
+                self.p.snack_bar.open = True
+                self.p.update()
                 
-                if button:
-                    button.text = "已加载"
-                    button.disabled = True
-                    button.update()
-                
-                self.p.snack_bar = ft.SnackBar(ft.Text(f"已加载模型: {model_name}"))
-            else:
-                self.p.snack_bar = ft.SnackBar(ft.Text(f"加载模型失败: {model_name}"))
-            self.p.snack_bar.open = True
-            self.p.update()
+                success = local_model_manager.load_model(model_name)
+                if success:
+                    self.p.snack_bar = ft.SnackBar(
+                        content=ft.Text(f"模型 {model_name} 加载成功"),
+                        bgcolor=ft.Colors.GREEN
+                    )
+                else:
+                    self.p.snack_bar = ft.SnackBar(
+                        content=ft.Text(f"模型 {model_name} 加载失败"),
+                        bgcolor=ft.Colors.RED
+                    )
+                self.p.snack_bar.open = True
+                self.p.update()
     
     def _delete_model(self, model_name):
         """删除模型"""

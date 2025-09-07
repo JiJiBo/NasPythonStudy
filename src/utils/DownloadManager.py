@@ -65,12 +65,17 @@ class DownloadEventManager:
     
     def emit(self, event_type: str, data: Dict):
         """发送事件"""
+        print(f"emit 事件: {event_type}, 订阅者数量: {len(self.subscribers[event_type])}")
         with self.lock:
-            for callback in self.subscribers[event_type]:
+            for i, callback in enumerate(self.subscribers[event_type]):
                 try:
+                    print(f"调用回调 {i+1}/{len(self.subscribers[event_type])}")
                     callback(data)
+                    print(f"回调 {i+1} 执行完成")
                 except Exception as e:
-                    print(f"事件回调错误: {e}")
+                    print(f"事件回调错误 {i+1}: {e}")
+                    import traceback
+                    traceback.print_exc()
     
     def get_download_status(self, model_name: str) -> Optional[DownloadStatus]:
         """获取下载状态"""
@@ -79,12 +84,26 @@ class DownloadEventManager:
     
     def update_download_status(self, model_name: str, status: DownloadStatus):
         """更新下载状态"""
+        print(f"update_download_status 开始: {model_name}")
         with self.lock:
             self.download_statuses[model_name] = status
-            self.emit("download_status_changed", {
-                "model_name": model_name,
-                "status": status.to_dict()
-            })
+            print(f"下载状态已保存: {model_name}")
+            
+            # 异步发送事件，避免阻塞
+            def send_event():
+                try:
+                    self.emit("download_status_changed", {
+                        "model_name": model_name,
+                        "status": status.to_dict()
+                    })
+                    print(f"事件已发送: {model_name}")
+                except Exception as e:
+                    print(f"发送事件失败: {e}")
+            
+            # 在新线程中发送事件
+            import threading
+            thread = threading.Thread(target=send_event, daemon=True)
+            thread.start()
     
     def get_all_download_statuses(self) -> Dict[str, DownloadStatus]:
         """获取所有下载状态"""
@@ -102,21 +121,43 @@ class DownloadManager:
     
     def _load_incomplete_downloads(self):
         """加载未完成的下载"""
+        # 导入LocalModelManager获取模型信息
+        try:
+            from src.utils.LocalModelManager import local_model_manager
+            available_models = local_model_manager.get_available_models()
+        except ImportError:
+            available_models = {}
+        
         for temp_file in self.models_dir.glob("*.tmp"):
             model_name = temp_file.stem.replace(".gguf", "")
             if os.path.exists(temp_file):
                 try:
                     downloaded_size = os.path.getsize(temp_file)
-                    # 这里需要从模型信息获取总大小，暂时使用估算值
-                    total_size = 1000 * 1024 * 1024  # 1GB估算
+                    
+                    # 从模型信息获取正确的总大小
+                    total_size = 0
+                    if model_name in available_models:
+                        total_size = available_models[model_name].size
+                    else:
+                        # 如果找不到模型信息，使用估算值
+                        total_size = 1000 * 1024 * 1024  # 1GB估算
+                    
                     progress = (downloaded_size / total_size * 100) if total_size > 0 else 0
                     
                     status = DownloadStatus(model_name, total_size, downloaded_size)
                     status.status = "paused"
                     status.update_progress(downloaded_size, total_size)
                     
+                    # 尝试获取下载URL
+                    try:
+                        if model_name in available_models:
+                            download_url = local_model_manager.get_best_mirror_url(model_name)
+                            status.download_url = download_url
+                    except:
+                        pass
+                    
                     self.event_manager.update_download_status(model_name, status)
-                    print(f"发现未完成的下载: {model_name} ({progress:.1f}%)")
+                    print(f"发现未完成的下载: {model_name} ({progress:.1f}%) - {downloaded_size//1024//1024}MB/{total_size//1024//1024}MB")
                 except Exception as e:
                     print(f"加载未完成下载时出错 {model_name}: {e}")
     
@@ -138,6 +179,8 @@ class DownloadManager:
     
     def start_download(self, model_name: str, download_url: str, total_size: int = 0) -> bool:
         """开始下载"""
+        print(f"start_download 被调用: {model_name}, URL: {download_url}, 大小: {total_size}")
+        
         # 检查是否已有下载状态
         existing_status = self.get_download_status(model_name)
         if existing_status and existing_status.status == "downloading":
@@ -149,7 +192,10 @@ class DownloadManager:
         status.status = "downloading"
         status.start_time = time.time()
         status.download_url = download_url
+        print(f"下载状态对象创建: {model_name}, 临时文件: {status.temp_file}")
+        
         self.event_manager.update_download_status(model_name, status)
+        print(f"下载状态已创建: {model_name}")
         
         # 启动下载线程
         thread = threading.Thread(
@@ -158,6 +204,7 @@ class DownloadManager:
             daemon=True
         )
         thread.start()
+        print(f"下载线程已启动: {model_name}")
         return True
     
     def resume_download(self, model_name: str) -> bool:
@@ -175,6 +222,8 @@ class DownloadManager:
         status.status = "downloading"
         status.start_time = time.time()
         self.event_manager.update_download_status(model_name, status)
+        
+        print(f"开始恢复下载: {model_name}，当前进度: {status.progress:.1f}%")
         
         # 启动下载线程
         thread = threading.Thread(
@@ -217,13 +266,16 @@ class DownloadManager:
     
     def _download_thread(self, model_name: str, download_url: str, total_size: int):
         """下载线程"""
+        print(f"下载线程开始执行: {model_name}")
         status = self.get_download_status(model_name)
         if not status:
+            print(f"下载线程错误: 找不到下载状态 {model_name}")
             return
         
         temp_file = status.temp_file
         max_retries = 3
         retry_delay = 5
+        print(f"下载线程准备开始: {model_name}, 临时文件: {temp_file}")
         
         for attempt in range(max_retries):
             try:
@@ -245,6 +297,7 @@ class DownloadManager:
                 }
                 headers.update(resume_header)
                 
+                print(f"发送下载请求: {model_name}，Range: {resume_header.get('Range', 'None')}")
                 response = requests.get(download_url, stream=True, headers=headers, timeout=30)
                 response.raise_for_status()
                 
@@ -259,21 +312,25 @@ class DownloadManager:
                 
                 # 打开文件（追加模式用于断点续传）
                 mode = 'ab' if downloaded > 0 else 'wb'
+                print(f"开始写入文件: {model_name}，模式: {mode}，已下载: {downloaded}MB")
+                
                 with open(temp_file, mode) as f:
                     for chunk in response.iter_content(chunk_size=8192):
                         # 检查是否被暂停或取消
                         if status.status not in ["downloading"]:
+                            print(f"下载被暂停或取消: {model_name}")
                             return
                         
                         if chunk:
                             f.write(chunk)
                             downloaded += len(chunk)
                             
-                            # 更新进度
-                            if total_size > 0:
+                            # 更新进度（每1MB更新一次，减少频繁更新）
+                            if total_size > 0 and downloaded % (1024 * 1024) == 0:
                                 progress = (downloaded / total_size) * 100
                                 status.update_progress(downloaded, total_size)
                                 self.event_manager.update_download_status(model_name, status)
+                                print(f"下载进度更新: {model_name} - {progress:.1f}%")
                 
                 # 下载完成，重命名文件
                 final_file = f"models/{model_name}.gguf"

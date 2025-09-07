@@ -168,3 +168,4 @@ storage/
 /kv_store.json
 /assets/models/
 /download_state.json
+/models/
